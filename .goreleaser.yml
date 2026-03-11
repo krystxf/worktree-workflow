@@ -26,6 +26,7 @@ brews:
     repository:
       owner: krystxf
       name: homebrew-wtw
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: "https://github.com/krystxf/worktree-workflow"
     description: "TUI tool for managing git worktrees"
     license: "MIT"
