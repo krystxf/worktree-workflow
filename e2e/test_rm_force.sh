@@ -19,7 +19,7 @@ echo "dirty" > "$WORKTREE/untracked.txt"
 
 # Normal remove should detect dirty state
 OUTPUT=$(run_wtw_fail rm "$BRANCH")
-assert_output_contains "$OUTPUT" "modified or untracked"
+assert_output_contains "$OUTPUT" "modified/untracked files"
 
 # Force remove should succeed
 run_wtw rm $FORCE_FLAG "$BRANCH"
