@@ -14,10 +14,9 @@ jobs:
     strategy:
       matrix:
         runner:
-          - ubuntu-latest       # linux amd64
-          - ubuntu-24.04-arm    # linux arm64
-          - macos-13            # macOS amd64
-          - macos-latest        # macOS arm64
+          - ubuntu-latest # linux amd64
+          - ubuntu-24.04-arm # linux arm64
+          - macos-latest # macOS arm64
     steps:
       - uses: actions/checkout@v4
 
@@ -42,7 +41,6 @@ jobs:
         runner:
           - ubuntu-latest
           - ubuntu-24.04-arm
-          - macos-13
           - macos-latest
     steps:
       - uses: actions/checkout@v4
