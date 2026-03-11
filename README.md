@@ -1,68 +1,12 @@
 # wtw — Go CLI
 
-## Prerequisites
+## Install
 
-- [Go](https://go.dev/dl/) 1.21+
-- git
-- rsync (pre-installed on macOS/Linux)
-
-## Build
+### Homebrew
 
 ```bash
-git clone https://github.com/krystof/worktree-workflow.git
-cd worktree-workflow
-go build -o wtw .
-```
-
-This produces a `wtw` binary in the current directory.
-
-## Run locally
-
-```bash
-# Create a worktree
-./wtw create feature-branch
-
-# List worktrees (interactive picker)
-./wtw ls
-
-# Remove a worktree
-./wtw rm feature-branch
-```
-
-## Install globally
-
-```bash
-go install github.com/krystof/worktree-workflow@latest
-```
-
-This puts the `wtw` binary in `$GOPATH/bin` (typically `~/go/bin`). Make sure it's in your `PATH`:
-
-```bash
-# Add to ~/.zshrc or ~/.bashrc if not already there
-export PATH="$HOME/go/bin:$PATH"
-```
-
-Then use it from anywhere:
-
-```bash
-cd ~/code/my-project
-wtw create feature-branch
-wtw ls
-wtw rm feature-branch
-```
-
-**Note:** `go install` uses the module name as the binary name (`worktree-workflow`). To get the `wtw` name, either:
-
-```bash
-# Option A: alias
-alias wtw=worktree-workflow
-
-# Option B: rename after install
-mv "$(go env GOPATH)/bin/worktree-workflow" "$(go env GOPATH)/bin/wtw"
-
-# Option C: build and copy manually
-go build -o wtw .
-cp wtw /usr/local/bin/
+brew tap krystxf/wtw
+brew install wtw
 ```
 
 ## Configuration
@@ -82,12 +26,12 @@ Create `~/.config/worktree-workflow/config.json`:
 }
 ```
 
-| Field | Default | Description |
-|---|---|---|
-| `editor` | `"cursor"` | Command to open the worktree (e.g. `code`, `nvim`, `zed`) |
-| `auto_open_editor` | `true` | Open editor automatically after creating a worktree |
-| `naming.worktree_dir_suffix` | `"--worktrees"` | Suffix for the parent worktree directory |
-| `naming.branch_separator` | `"--"` | Separator between repo name and branch name |
+| Field                        | Default         | Description                                               |
+| ---------------------------- | --------------- | --------------------------------------------------------- |
+| `editor`                     | `"cursor"`      | Command to open the worktree (e.g. `code`, `nvim`, `zed`) |
+| `auto_open_editor`           | `true`          | Open editor automatically after creating a worktree       |
+| `naming.worktree_dir_suffix` | `"--worktrees"` | Suffix for the parent worktree directory                  |
+| `naming.branch_separator`    | `"--"`          | Separator between repo name and branch name               |
 
 All fields are optional — missing values use the defaults above.
 
@@ -103,11 +47,11 @@ Create `.worktree-workflow.json` in your project root:
 }
 ```
 
-| Field | Default | Description |
-|---|---|---|
-| `sync_ignored` | `true` | Sync gitignored files (`.env`, etc.) via hard links |
-| `sync_excludes` | `[]` | Patterns to exclude from sync |
-| `post_copy_hooks` | `[]` | Shell commands to run in the new worktree after creation |
+| Field             | Default | Description                                              |
+| ----------------- | ------- | -------------------------------------------------------- |
+| `sync_ignored`    | `true`  | Sync gitignored files (`.env`, etc.) via hard links      |
+| `sync_excludes`   | `[]`    | Patterns to exclude from sync                            |
+| `post_copy_hooks` | `[]`    | Shell commands to run in the new worktree after creation |
 
 ## Examples
 
@@ -117,6 +61,37 @@ See the [`examples/`](examples/) directory:
 - [`tmux`](examples/tmux/) — tmux window per worktree
 
 ## Development
+
+### Prerequisites
+
+- [Go](https://go.dev/dl/) 1.21+
+- git
+- rsync (pre-installed on macOS/Linux)
+
+### Build
+
+```bash
+git clone https://github.com/krystof/worktree-workflow.git
+cd worktree-workflow
+go build -o wtw .
+```
+
+This produces a `wtw` binary in the current directory.
+
+### Run locally
+
+```bash
+# Create a worktree
+./wtw create feature-branch
+
+# List worktrees (interactive picker)
+./wtw ls
+
+# Remove a worktree
+./wtw rm feature-branch
+```
+
+### Make targets
 
 ```bash
 # Build
