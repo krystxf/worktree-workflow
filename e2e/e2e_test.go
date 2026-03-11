@@ -17,6 +17,11 @@ func TestMain(m *testing.M) {
 	if bin == "" {
 		bin = "../wtw"
 	}
+	if !filepath.IsAbs(bin) {
+		_, src, _, _ := runtime.Caller(0)
+		repoRoot := filepath.Dir(filepath.Dir(src))
+		bin = filepath.Join(repoRoot, bin)
+	}
 	abs, err := filepath.Abs(bin)
 	if err != nil {
 		panic(err)
