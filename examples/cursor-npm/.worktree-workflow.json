@@ -1,0 +1,5 @@
+{
+  "sync_ignored": true,
+  "sync_excludes": ["node_modules", ".next"],
+  "post_copy_hooks": ["npm install"]
+}

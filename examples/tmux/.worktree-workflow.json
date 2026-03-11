@@ -1,0 +1,7 @@
+{
+  "sync_ignored": true,
+  "sync_excludes": ["node_modules"],
+  "post_copy_hooks": [
+    "tmux new-window -n \"$(basename \"$PWD\")\" -c \"$PWD\""
+  ]
+}

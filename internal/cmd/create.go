@@ -1,0 +1,48 @@
+package cmd
+
+import (
+	"fmt"
+	"os"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
+
+	"github.com/krystof/worktree-workflow/internal/config"
+	"github.com/krystof/worktree-workflow/internal/git"
+	"github.com/krystof/worktree-workflow/internal/ui"
+)
+
+var createCmd = &cobra.Command{
+	Use:   "create <branch>",
+	Short: "Create a new worktree for the given branch",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		branch := args[0]
+
+		root, err := git.Root()
+		if err != nil {
+			return fmt.Errorf("not a git repository")
+		}
+
+		globalCfg, err := config.LoadGlobal()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to load global config: %s\n", err)
+		}
+
+		projectCfg, err := config.LoadProject(root)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to load project config: %s\n", err)
+		}
+
+		worktreeDir := git.WorktreeDir(root, globalCfg.Naming.WorktreeDirSuffix, globalCfg.Naming.BranchSeparator, branch)
+
+		model := ui.NewCreateModel(branch, root, worktreeDir, globalCfg, projectCfg)
+		p := tea.NewProgram(model)
+
+		if _, err := p.Run(); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
