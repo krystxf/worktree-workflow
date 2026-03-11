@@ -19,6 +19,7 @@ var initLocal bool
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize global config (~/.config/worktree-workflow) or project config (--local)",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if initLocal {
 			return runInitLocal(cmd)
@@ -33,7 +34,10 @@ func init() {
 }
 
 func runInitGlobal() error {
-	globalCfg, _ := config.LoadGlobal()
+	globalCfg, err := config.LoadGlobal()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to load existing config: %s\n", err)
+	}
 
 	model := ui.NewInitModel(globalCfg)
 	p := tea.NewProgram(model)
@@ -43,7 +47,11 @@ func runInitGlobal() error {
 		return err
 	}
 
-	result := finalModel.(ui.InitModel).Result()
+	m, ok := finalModel.(ui.InitModel)
+	if !ok {
+		return fmt.Errorf("unexpected model type")
+	}
+	result := m.Result()
 	if result.Canceled {
 		fmt.Println("Canceled.")
 		return nil
@@ -77,7 +85,10 @@ func runInitLocal(cmd *cobra.Command) error {
 		return nil
 	}
 
-	projectCfg, _ := config.LoadProject(root)
+	projectCfg, err := config.LoadProject(root)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to load existing project config: %s\n", err)
+	}
 
 	model := ui.NewLocalInitModel(projectCfg)
 	p := tea.NewProgram(model)
@@ -87,13 +98,18 @@ func runInitLocal(cmd *cobra.Command) error {
 		return err
 	}
 
-	result := finalModel.(ui.LocalInitModel).Result()
+	lm, ok := finalModel.(ui.LocalInitModel)
+	if !ok {
+		return fmt.Errorf("unexpected model type")
+	}
+	result := lm.Result()
 	if result.Canceled {
 		fmt.Println("Canceled.")
 		return nil
 	}
 
-	projectCfg.SyncIgnored = result.SyncIgnored
+	v := result.SyncIgnored
+	projectCfg.SyncIgnored = &v
 	projectCfg.SyncExcludes = result.SyncExcludes
 	projectCfg.PostCopyHooks = result.PostCopyHooks
 

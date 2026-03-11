@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -14,7 +15,8 @@ import (
 func OpenEditorAction(globalCfg config.GlobalConfig) PickerAction {
 	return func(item worktreeItem) tea.Cmd {
 		return func() tea.Msg {
-			cmd := exec.Command(globalCfg.Editor, item.path)
+			bin, args := globalCfg.EditorArgs(item.path)
+			cmd := exec.Command(bin, args...)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				return actionDoneMsg{err: fmt.Errorf("%s: %s", err, strings.TrimSpace(string(out)))}
@@ -29,17 +31,15 @@ func OpenEditorAction(globalCfg config.GlobalConfig) PickerAction {
 func RemoveWorktreeAction(force bool) PickerAction {
 	return func(item worktreeItem) tea.Cmd {
 		return func() tea.Msg {
-			out, err := gitpkg.WorktreeRemove(item.path, force)
+			_, err := gitpkg.WorktreeRemove(item.path, force)
 			if err != nil {
-				if !force && strings.Contains(err.Error(), "modified or untracked") {
+				if !force && errors.Is(err, gitpkg.ErrWorktreeModified) {
 					return needsForceMsg{item: item}
 				}
 				return actionDoneMsg{err: err}
 			}
 
-			pruneOut, pruneErr := gitpkg.WorktreePrune()
-			_, _ = out, pruneOut
-
+			_, pruneErr := gitpkg.WorktreePrune()
 			if pruneErr != nil {
 				return actionDoneMsg{result: fmt.Sprintf("Removed worktree '%s' (prune warning: %s)", item.branch, pruneErr)}
 			}
@@ -51,14 +51,12 @@ func RemoveWorktreeAction(force bool) PickerAction {
 
 func forceRemoveAction(item worktreeItem) tea.Cmd {
 	return func() tea.Msg {
-		out, err := gitpkg.WorktreeRemove(item.path, true)
+		_, err := gitpkg.WorktreeRemove(item.path, true)
 		if err != nil {
 			return actionDoneMsg{err: err}
 		}
 
-		pruneOut, pruneErr := gitpkg.WorktreePrune()
-		_, _ = out, pruneOut
-
+		_, pruneErr := gitpkg.WorktreePrune()
 		if pruneErr != nil {
 			return actionDoneMsg{result: fmt.Sprintf("Force removed worktree '%s' (prune warning: %s)", item.branch, pruneErr)}
 		}

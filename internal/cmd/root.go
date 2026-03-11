@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 
 	"github.com/spf13/cobra"
@@ -12,11 +11,11 @@ var rootCmd = &cobra.Command{
 	Use:   "wtw",
 	Short: "Worktree workflow manager",
 	Long:  "A TUI tool for managing git worktrees — create, list, and remove worktrees with ease.",
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if runtime.GOOS == "windows" {
-			fmt.Fprintln(os.Stderr, "error: fuck windows, you should know better")
-			os.Exit(1)
+			return fmt.Errorf("wtw does not support Windows")
 		}
+		return nil
 	},
 }
 

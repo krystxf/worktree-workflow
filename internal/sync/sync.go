@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -19,11 +20,11 @@ func SyncIgnored(root, dest string, excludes []string) (string, error) {
 	}
 
 	cmd := exec.Command("rsync", "-av", "--hard-links", "--from0", "--files-from=-", root+"/", dest+"/")
-	cmd.Stdin = strings.NewReader(string(files))
+	cmd.Stdin = bytes.NewReader(files)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(out), fmt.Errorf("rsync failed: %s", strings.TrimSpace(string(out)))
+		return string(out), fmt.Errorf("rsync failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 
 	return string(out), nil

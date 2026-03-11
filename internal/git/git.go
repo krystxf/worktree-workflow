@@ -3,11 +3,15 @@ package git
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
+
+// ErrWorktreeModified is returned when a worktree cannot be removed due to modified or untracked files.
+var ErrWorktreeModified = errors.New("worktree contains modified or untracked files")
 
 type Worktree struct {
 	Path   string
@@ -64,7 +68,11 @@ func WorktreeRemove(path string, force bool) (string, error) {
 	cmd := exec.Command("git", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(out), fmt.Errorf("git worktree remove failed: %s", strings.TrimSpace(string(out)))
+		errMsg := strings.TrimSpace(string(out))
+		if strings.Contains(errMsg, "modified or untracked") {
+			return string(out), ErrWorktreeModified
+		}
+		return string(out), fmt.Errorf("git worktree remove failed: %s", errMsg)
 	}
 	return string(out), nil
 }
@@ -84,9 +92,12 @@ func WorktreeList() ([]Worktree, error) {
 	if err != nil {
 		return nil, fmt.Errorf("git worktree list failed: %w", err)
 	}
+	return parseWorktreeList(out), nil
+}
 
+func parseWorktreeList(data []byte) []Worktree {
 	var worktrees []Worktree
-	scanner := bufio.NewScanner(bytes.NewReader(out))
+	scanner := bufio.NewScanner(bytes.NewReader(data))
 	var current Worktree
 
 	for scanner.Scan() {
@@ -97,6 +108,8 @@ func WorktreeList() ([]Worktree, error) {
 		case strings.HasPrefix(line, "branch "):
 			ref := strings.TrimPrefix(line, "branch ")
 			current.Branch = strings.TrimPrefix(ref, "refs/heads/")
+		case line == "detached":
+			current.Branch = "(detached HEAD)"
 		case line == "":
 			if current.Path != "" {
 				worktrees = append(worktrees, current)
@@ -109,7 +122,7 @@ func WorktreeList() ([]Worktree, error) {
 		worktrees = append(worktrees, current)
 	}
 
-	return worktrees, nil
+	return worktrees
 }
 
 func IgnoredFiles(root string, excludes []string) ([]byte, error) {
@@ -118,14 +131,16 @@ func IgnoredFiles(root string, excludes []string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("git ls-files failed: %w", err)
 	}
+	return filterExcluded(out, excludes), nil
+}
 
+func filterExcluded(data []byte, excludes []string) []byte {
 	if len(excludes) == 0 {
-		return out, nil
+		return data
 	}
 
-	// Filter out excluded paths (null-separated)
 	var filtered [][]byte
-	for _, entry := range bytes.Split(out, []byte{0}) {
+	for _, entry := range bytes.Split(data, []byte{0}) {
 		if len(entry) == 0 {
 			continue
 		}
@@ -141,10 +156,9 @@ func IgnoredFiles(root string, excludes []string) ([]byte, error) {
 		}
 	}
 
-	// Rejoin with null separators
 	result := bytes.Join(filtered, []byte{0})
 	if len(result) > 0 {
 		result = append(result, 0)
 	}
-	return result, nil
+	return result
 }

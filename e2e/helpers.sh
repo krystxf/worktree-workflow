@@ -21,12 +21,12 @@ assert_file_contents() {
 
 assert_file_contains() {
   local file="$1" pattern="$2"
-  grep -q "$pattern" "$file" || _fail "$file does not contain '$pattern'"
+  grep -qF "$pattern" "$file" || _fail "$file does not contain '$pattern'"
 }
 
 assert_output_contains() {
   local output="$1" pattern="$2"
-  echo "$output" | grep -q "$pattern" || _fail "output does not contain '$pattern': $output"
+  echo "$output" | grep -qF "$pattern" || _fail "output does not contain '$pattern': $output"
 }
 
 assert_branch() {

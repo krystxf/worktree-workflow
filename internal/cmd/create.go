@@ -42,12 +42,13 @@ var createCmd = &cobra.Command{
 		worktreeDir := git.WorktreeDir(root, globalCfg.Naming.WorktreeDirSuffix, globalCfg.Naming.BranchSeparator, branch)
 
 		globalForce, _ := cmd.Root().PersistentFlags().GetBool("force")
+		isTerminal := term.IsTerminal(int(os.Stdin.Fd()))
 
 		createNewBranch := false
 		if !git.BranchExists(branch) {
 			if globalForce {
 				createNewBranch = true
-			} else if !term.IsTerminal(int(os.Stdin.Fd())) {
+			} else if !isTerminal {
 				return fmt.Errorf("branch '%s' does not exist (create it first or run interactively)", branch)
 			} else {
 				fmt.Printf("Branch '%s' does not exist. Create it? [y/N] ", branch)
@@ -62,7 +63,7 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		if !term.IsTerminal(int(os.Stdin.Fd())) {
+		if !isTerminal {
 			return createPlain(branch, root, worktreeDir, globalCfg, projectCfg, createNewBranch)
 		}
 
@@ -98,7 +99,7 @@ func createPlain(branch, root, worktreeDir string, globalCfg config.GlobalConfig
 		return err
 	}
 
-	if projectCfg.SyncIgnored {
+	if *projectCfg.SyncIgnored {
 		fmt.Println("Syncing gitignored files...")
 		out, err := syncpkg.SyncIgnored(root, worktreeDir, projectCfg.SyncExcludes)
 		if out != "" {
@@ -122,9 +123,10 @@ func createPlain(branch, root, worktreeDir string, globalCfg config.GlobalConfig
 		}
 	}
 
-	if globalCfg.AutoOpenEditor {
+	if *globalCfg.AutoOpenEditor {
 		fmt.Printf("Opening in %s...\n", globalCfg.Editor)
-		cmd := exec.Command(globalCfg.Editor, worktreeDir)
+		bin, editorArgs := globalCfg.EditorArgs(worktreeDir)
+		cmd := exec.Command(bin, editorArgs...)
 		out, err := cmd.CombinedOutput()
 		if len(out) > 0 {
 			fmt.Print(string(out))

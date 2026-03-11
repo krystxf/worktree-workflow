@@ -45,8 +45,10 @@ var lsCmd = &cobra.Command{
 			return err
 		}
 
-		if msg := finalModel.(ui.PickerModel).ResultMessage(); msg != "" {
-			fmt.Print(msg)
+		if m, ok := finalModel.(ui.PickerModel); ok {
+			if msg := m.ResultMessage(); msg != "" {
+				fmt.Print(msg)
+			}
 		}
 
 		return nil

@@ -70,6 +70,8 @@ var (
 	dimStyle     = lipgloss.NewStyle().Faint(true)
 )
 
+const maxVisibleLogs = 8
+
 func NewCreateModel(branch, root, worktreeDir string, globalCfg config.GlobalConfig, projectCfg config.ProjectConfig, createNewBranch bool) CreateModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -140,7 +142,7 @@ func (m CreateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.runCreate()
 
 		case phaseCreating:
-			if m.projectCfg.SyncIgnored {
+			if *m.projectCfg.SyncIgnored {
 				m.current = phaseSyncing
 				return m, m.runSync()
 			}
@@ -222,7 +224,7 @@ func (m CreateModel) View() string {
 		if ph.p == phaseCreatingBranch && !m.createNewBranch {
 			continue
 		}
-		if ph.p == phaseSyncing && !m.projectCfg.SyncIgnored {
+		if ph.p == phaseSyncing && !*m.projectCfg.SyncIgnored {
 			continue
 		}
 		if ph.p == phaseHooks && m.hooksTotal == 0 {
@@ -271,8 +273,8 @@ func (m CreateModel) View() string {
 	if len(m.logs) > 0 {
 		fmt.Fprint(&b, "\n")
 		start := 0
-		if len(m.logs) > 8 {
-			start = len(m.logs) - 8
+		if len(m.logs) > maxVisibleLogs {
+			start = len(m.logs) - maxVisibleLogs
 		}
 		for _, line := range m.logs[start:] {
 			fmt.Fprintf(&b, "    %s\n", dimStyle.Render(line))
@@ -319,10 +321,11 @@ func (m CreateModel) runHook(index int) tea.Cmd {
 
 func (m CreateModel) runOpen() tea.Cmd {
 	return func() tea.Msg {
-		if !m.globalCfg.AutoOpenEditor {
+		if !*m.globalCfg.AutoOpenEditor {
 			return phaseResult{phase: phaseOpening}
 		}
-		cmd := exec.Command(m.globalCfg.Editor, m.worktreeDir)
+		bin, args := m.globalCfg.EditorArgs(m.worktreeDir)
+		cmd := exec.Command(bin, args...)
 		out, err := cmd.CombinedOutput()
 		return phaseResult{phase: phaseOpening, logs: string(out), err: err}
 	}

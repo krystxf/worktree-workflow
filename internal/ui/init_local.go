@@ -55,7 +55,7 @@ func NewLocalInitModel(current config.ProjectConfig) LocalInitModel {
 	}
 
 	return LocalInitModel{
-		syncIgnored: current.SyncIgnored,
+		syncIgnored: *current.SyncIgnored,
 		excludes:    excludes,
 		hooks:       hooks,
 		phase:       localSyncIgnored,

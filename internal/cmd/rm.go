@@ -2,19 +2,19 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/krystof/worktree-workflow/internal/config"
 	"github.com/krystof/worktree-workflow/internal/git"
 	"github.com/krystof/worktree-workflow/internal/ui"
 )
-
-var forceRemove bool
 
 var rmCmd = &cobra.Command{
 	Use:     "rm [branch]",
@@ -28,7 +28,6 @@ var rmCmd = &cobra.Command{
 		}
 
 		globalForce, _ := cmd.Root().PersistentFlags().GetBool("force")
-		effectiveForce := forceRemove || globalForce
 
 		globalCfg, err := config.LoadGlobal()
 		if err != nil {
@@ -39,7 +38,7 @@ var rmCmd = &cobra.Command{
 		if len(args) == 1 {
 			branch := args[0]
 			worktreeDir := git.WorktreeDir(root, globalCfg.Naming.WorktreeDirSuffix, globalCfg.Naming.BranchSeparator, branch)
-			return removeWorktree(worktreeDir, branch, effectiveForce)
+			return removeWorktree(worktreeDir, branch, globalForce)
 		}
 
 		// No branch given — interactive picker
@@ -53,7 +52,7 @@ var rmCmd = &cobra.Command{
 			return nil
 		}
 
-		model := ui.NewPickerModel("Remove worktree", worktrees, ui.RemoveWorktreeAction(effectiveForce), root, root)
+		model := ui.NewPickerModel("Remove worktree", worktrees, ui.RemoveWorktreeAction(globalForce), root, root)
 		p := tea.NewProgram(model, tea.WithAltScreen())
 
 		finalModel, err := p.Run()
@@ -61,23 +60,24 @@ var rmCmd = &cobra.Command{
 			return err
 		}
 
-		if msg := finalModel.(ui.PickerModel).ResultMessage(); msg != "" {
-			fmt.Print(msg)
+		if m, ok := finalModel.(ui.PickerModel); ok {
+			if msg := m.ResultMessage(); msg != "" {
+				fmt.Print(msg)
+			}
 		}
 
 		return nil
 	},
 }
 
-func init() {
-	rmCmd.Flags().BoolVarP(&forceRemove, "force", "f", false, "Force remove even with uncommitted changes")
-}
-
 func removeWorktree(worktreeDir, branch string, force bool) error {
 	out, err := git.WorktreeRemove(worktreeDir, force)
 	if err != nil {
-		// Prompt for force if modified/untracked files (unless force already set)
-		if !force && strings.Contains(err.Error(), "modified or untracked") {
+		if !force && errors.Is(err, git.ErrWorktreeModified) {
+			if !term.IsTerminal(int(os.Stdin.Fd())) {
+				return fmt.Errorf("worktree '%s' has modified/untracked files (use -f to force remove)", branch)
+			}
+
 			fmt.Printf("! Worktree '%s' contains modified or untracked files.\n", branch)
 			fmt.Print("  Force remove? [y/N] ")
 
@@ -106,9 +106,11 @@ func removeWorktree(worktreeDir, branch string, force bool) error {
 
 	if out, err := git.WorktreePrune(); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: git worktree prune failed: %s\n", err)
-	} else if out != "" {
-		fmt.Print(out)
+	} else {
+		if out != "" {
+			fmt.Print(out)
+		}
+		fmt.Println("✓ Pruned stale worktree references")
 	}
-	fmt.Println("✓ Pruned stale worktree references")
 	return nil
 }
