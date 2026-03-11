@@ -55,7 +55,6 @@ func WorktreeAdd(path, branch string) (string, error) {
 	return string(out), nil
 }
 
-
 func WorktreeRemove(path string, force bool) (string, error) {
 	args := []string{"worktree", "remove"}
 	if force {

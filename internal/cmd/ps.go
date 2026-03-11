@@ -36,7 +36,7 @@ var psCmd = &cobra.Command{
 			return nil
 		}
 
-		model := ui.NewPickerModel("Worktrees", worktrees, ui.OpenEditorAction(globalCfg))
+		model := ui.NewPickerModel("Worktrees", worktrees, ui.OpenEditorAction(globalCfg), "")
 		p := tea.NewProgram(model, tea.WithAltScreen())
 
 		finalModel, err := p.Run()

@@ -13,12 +13,25 @@ import (
 )
 
 type worktreeItem struct {
-	branch string
-	path   string
+	branch   string
+	path     string
+	disabled bool
 }
 
-func (i worktreeItem) Title() string       { return i.branch }
-func (i worktreeItem) Description() string { return i.path }
+func (i worktreeItem) Title() string {
+	if i.disabled {
+		return dimStyle.Render(i.branch) + dimStyle.Render(" (main)")
+	}
+	return i.branch
+}
+
+func (i worktreeItem) Description() string {
+	if i.disabled {
+		return dimStyle.Render(i.path)
+	}
+	return i.path
+}
+
 func (i worktreeItem) FilterValue() string { return i.branch }
 
 // actionDoneMsg is sent when the post-selection action completes.
@@ -57,10 +70,10 @@ type PickerModel struct {
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
-func NewPickerModel(title string, worktrees []gitpkg.Worktree, action PickerAction) PickerModel {
+func NewPickerModel(title string, worktrees []gitpkg.Worktree, action PickerAction, disabledPath string) PickerModel {
 	items := make([]list.Item, len(worktrees))
 	for i, wt := range worktrees {
-		items[i] = worktreeItem{branch: wt.Branch, path: wt.Path}
+		items[i] = worktreeItem{branch: wt.Branch, path: wt.Path, disabled: wt.Path == disabledPath}
 	}
 
 	delegate := list.NewDefaultDelegate()
@@ -115,7 +128,7 @@ func (m PickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		case "enter":
-			if item, ok := m.list.SelectedItem().(worktreeItem); ok {
+			if item, ok := m.list.SelectedItem().(worktreeItem); ok && !item.disabled {
 				m.selected = &item
 				return m, m.action(item)
 			}

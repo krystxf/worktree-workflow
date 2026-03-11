@@ -4,6 +4,16 @@ set -euo pipefail
 WTW="${WTW:-./wtw}"
 
 cd /tmp/test-project
+
+# Set up project config with node_modules excluded
+cat > .worktree-workflow.json << 'EOF'
+{
+  "sync_ignored": true,
+  "sync_excludes": ["node_modules"],
+  "post_copy_hooks": []
+}
+EOF
+
 $WTW create feature-one
 
 WORKTREE_DIR="/tmp/test-project--worktrees/test-project--feature-one"

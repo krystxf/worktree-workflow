@@ -49,7 +49,7 @@ var rmCmd = &cobra.Command{
 			return nil
 		}
 
-		model := ui.NewPickerModel("Remove worktree", worktrees, ui.RemoveWorktreeAction(forceRemove))
+		model := ui.NewPickerModel("Remove worktree", worktrees, ui.RemoveWorktreeAction(forceRemove), root)
 		p := tea.NewProgram(model, tea.WithAltScreen())
 
 		finalModel, err := p.Run()
