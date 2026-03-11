@@ -82,8 +82,7 @@ func removeWorktree(worktreeDir, branch string) error {
 			answer = strings.TrimSpace(strings.ToLower(answer))
 
 			if answer == "y" {
-				out, err = git.WorktreeRemove(worktreeDir, true)
-				if err != nil {
+				if _, err = git.WorktreeRemove(worktreeDir, true); err != nil {
 					return err
 				}
 				fmt.Printf("✓ Force removed worktree at %s\n", worktreeDir)

@@ -1,6 +1,6 @@
 BINARY := wtw
 
-.PHONY: build run lint fmt clean
+.PHONY: build run lint fmt clean e2e
 
 build:
 	go build -o $(BINARY) .
@@ -13,6 +13,9 @@ lint:
 
 fmt:
 	gofumpt -w .
+
+e2e: build
+	WTW=./$(BINARY) ./e2e/run.sh
 
 clean:
 	rm -f $(BINARY)

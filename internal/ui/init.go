@@ -85,12 +85,12 @@ func (m InitModel) View() string {
 	}
 
 	var b strings.Builder
-	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  %s\n", labelStyle.Render("Editor command")))
-	b.WriteString(fmt.Sprintf("  %s\n\n", hintStyle.Render("e.g. cursor, code, nvim, zed")))
-	b.WriteString(fmt.Sprintf("  %s\n\n", m.editor.View()))
-	b.WriteString(fmt.Sprintf("  %s\n", hintStyle.Render("enter to confirm · esc to cancel")))
-	b.WriteString("\n")
+	fmt.Fprint(&b, "\n")
+	fmt.Fprintf(&b, "  %s\n", labelStyle.Render("Editor command"))
+	fmt.Fprintf(&b, "  %s\n\n", hintStyle.Render("e.g. cursor, code, nvim, zed"))
+	fmt.Fprintf(&b, "  %s\n\n", m.editor.View())
+	fmt.Fprintf(&b, "  %s\n", hintStyle.Render("enter to confirm · esc to cancel"))
+	fmt.Fprint(&b, "\n")
 	return b.String()
 }
 

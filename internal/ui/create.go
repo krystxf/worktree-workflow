@@ -189,7 +189,7 @@ func (m CreateModel) View() string {
 
 	var b strings.Builder
 
-	b.WriteString("\n")
+	fmt.Fprint(&b, "\n")
 
 	// Phase lines
 	phases := []struct {
@@ -211,15 +211,15 @@ func (m CreateModel) View() string {
 		}
 
 		if m.current == phaseFailed && ph.p == m.failedAt {
-			b.WriteString(fmt.Sprintf("  %s  %s\n", failStyle.Render("✗"), ph.name))
+			fmt.Fprintf(&b, "  %s  %s\n", failStyle.Render("✗"), ph.name)
 		} else if m.current == phaseFailed && ph.p > m.failedAt {
-			b.WriteString(fmt.Sprintf("     %s\n", dimStyle.Render(ph.name)))
+			fmt.Fprintf(&b, "     %s\n", dimStyle.Render(ph.name))
 		} else if ph.p < m.current || (m.current == phaseFailed && ph.p < m.failedAt) {
-			b.WriteString(fmt.Sprintf("  %s  %s\n", checkStyle.Render("✓"), ph.name))
+			fmt.Fprintf(&b, "  %s  %s\n", checkStyle.Render("✓"), ph.name)
 		} else if ph.p == m.current && m.current != phaseDone {
-			b.WriteString(fmt.Sprintf("  %s %s\n", m.spinner.View(), ph.name))
+			fmt.Fprintf(&b, "  %s %s\n", m.spinner.View(), ph.name)
 		} else {
-			b.WriteString(fmt.Sprintf("     %s\n", dimStyle.Render(ph.name)))
+			fmt.Fprintf(&b, "     %s\n", dimStyle.Render(ph.name))
 		}
 
 		// Show individual hook steps when in hooks phase
@@ -227,40 +227,40 @@ func (m CreateModel) View() string {
 			for i, hs := range m.hookStatuses {
 				label := fmt.Sprintf("[%d/%d] %s", i+1, m.hooksTotal, hs.command)
 				if hs.done {
-					b.WriteString(fmt.Sprintf("      %s  %s\n", checkStyle.Render("✓"), label))
+					fmt.Fprintf(&b, "      %s  %s\n", checkStyle.Render("✓"), label)
 				} else if hs.failed {
-					b.WriteString(fmt.Sprintf("      %s  %s\n", failStyle.Render("✗"), label))
+					fmt.Fprintf(&b, "      %s  %s\n", failStyle.Render("✗"), label)
 				} else if m.current == phaseHooks && i == m.hookIndex {
-					b.WriteString(fmt.Sprintf("      %s %s\n", m.spinner.View(), label))
+					fmt.Fprintf(&b, "      %s %s\n", m.spinner.View(), label)
 				} else {
-					b.WriteString(fmt.Sprintf("         %s\n", dimStyle.Render(label)))
+					fmt.Fprintf(&b, "         %s\n", dimStyle.Render(label))
 				}
 			}
 		}
 	}
 
 	if m.current == phaseDone {
-		b.WriteString(fmt.Sprintf("\n  %s  %s\n", checkStyle.Render("✓"), "Done!"))
-		b.WriteString(fmt.Sprintf("      %s\n", dimStyle.Render(m.worktreeDir)))
+		fmt.Fprintf(&b, "\n  %s  %s\n", checkStyle.Render("✓"), "Done!")
+		fmt.Fprintf(&b, "      %s\n", dimStyle.Render(m.worktreeDir))
 	}
 
 	if m.current == phaseFailed {
-		b.WriteString(fmt.Sprintf("\n  %s %s\n", failStyle.Render("✗"), failStyle.Render(m.err.Error())))
+		fmt.Fprintf(&b, "\n  %s %s\n", failStyle.Render("✗"), failStyle.Render(m.err.Error()))
 	}
 
 	// Show recent logs
 	if len(m.logs) > 0 {
-		b.WriteString("\n")
+		fmt.Fprint(&b, "\n")
 		start := 0
 		if len(m.logs) > 8 {
 			start = len(m.logs) - 8
 		}
 		for _, line := range m.logs[start:] {
-			b.WriteString(fmt.Sprintf("    %s\n", dimStyle.Render(line)))
+			fmt.Fprintf(&b, "    %s\n", dimStyle.Render(line))
 		}
 	}
 
-	b.WriteString("\n")
+	fmt.Fprint(&b, "\n")
 	return b.String()
 }
 

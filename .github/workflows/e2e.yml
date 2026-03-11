@@ -1,15 +1,13 @@
 name: E2E
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
+  pull_request:
 
 jobs:
-  e2e:
-    name: End-to-end tests
+  build:
+    name: Build
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -17,345 +15,32 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build wtw
+      - name: Build
         run: go build -o wtw .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wtw
+          path: wtw
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wtw
+
+      - name: Make binary executable
+        run: chmod +x wtw
 
       - name: Setup git identity
         run: |
           git config --global user.email "test@test.com"
           git config --global user.name "Test"
 
-      # ── Create a test repository ──────────────────────────────────
-      - name: Create test repo with branches and gitignored files
-        run: |
-          mkdir -p /tmp/test-project
-          cd /tmp/test-project
-          git init
-          echo "node_modules/" >> .gitignore
-          echo ".env" >> .gitignore
-          echo "dist/" >> .gitignore
-          echo '{"name": "test-project"}' > package.json
-          echo "hello" > index.js
-          git add -A
-          git commit -m "initial commit"
-
-          # Create some branches
-          git branch feature-one
-          git branch feature-two
-          git branch bugfix-123
-
-          # Add gitignored files
-          echo "SECRET=abc" > .env
-          echo "OTHER=xyz" > .env.local
-          mkdir -p node_modules/fake-pkg
-          echo "{}" > node_modules/fake-pkg/package.json
-          mkdir -p dist
-          echo "built" > dist/index.js
-
-          # Make a commit on feature-one
-          git checkout feature-one
-          echo "feature one code" > feature.js
-          git add feature.js
-          git commit -m "add feature one"
-          git checkout main
-
-      # ── Test: wtw create ──────────────────────────────────────────
-      - name: "Test: create worktree for feature-one"
-        run: |
-          cd /tmp/test-project
-          $GITHUB_WORKSPACE/wtw create feature-one
-
-          WORKTREE_DIR="/tmp/test-project--worktrees/test-project--feature-one"
-
-          # Verify worktree directory exists
-          test -d "$WORKTREE_DIR" || (echo "FAIL: worktree dir not created" && exit 1)
-
-          # Verify it's on the right branch
-          BRANCH=$(git -C "$WORKTREE_DIR" branch --show-current)
-          test "$BRANCH" = "feature-one" || (echo "FAIL: expected branch feature-one, got $BRANCH" && exit 1)
-
-          # Verify feature.js exists (was committed on feature-one)
-          test -f "$WORKTREE_DIR/feature.js" || (echo "FAIL: feature.js missing" && exit 1)
-
-          echo "PASS: worktree created on correct branch with correct files"
-
-      - name: "Test: gitignored files synced via hard links"
-        run: |
-          WORKTREE_DIR="/tmp/test-project--worktrees/test-project--feature-one"
-
-          # .env should be synced
-          test -f "$WORKTREE_DIR/.env" || (echo "FAIL: .env not synced" && exit 1)
-          test "$(cat "$WORKTREE_DIR/.env")" = "SECRET=abc" || (echo "FAIL: .env content wrong" && exit 1)
-
-          # .env.local should be synced
-          test -f "$WORKTREE_DIR/.env.local" || (echo "FAIL: .env.local not synced" && exit 1)
-
-          # node_modules should NOT be synced (excluded by default)
-          test ! -d "$WORKTREE_DIR/node_modules" || (echo "FAIL: node_modules should be excluded" && exit 1)
-
-          # dist should be synced (not excluded)
-          test -f "$WORKTREE_DIR/dist/index.js" || (echo "FAIL: dist/index.js not synced" && exit 1)
-
-          # Verify hard links (same inode)
-          INODE_ORIG=$(stat -c %i /tmp/test-project/.env)
-          INODE_WT=$(stat -c %i "$WORKTREE_DIR/.env")
-          test "$INODE_ORIG" = "$INODE_WT" || (echo "FAIL: .env not hard-linked (inodes: $INODE_ORIG vs $INODE_WT)" && exit 1)
-
-          echo "PASS: gitignored files synced correctly with hard links"
-
-      - name: "Test: create second worktree"
-        run: |
-          cd /tmp/test-project
-          $GITHUB_WORKSPACE/wtw create feature-two
-
-          WORKTREE_DIR="/tmp/test-project--worktrees/test-project--feature-two"
-          test -d "$WORKTREE_DIR" || (echo "FAIL: second worktree not created" && exit 1)
-
-          BRANCH=$(git -C "$WORKTREE_DIR" branch --show-current)
-          test "$BRANCH" = "feature-two" || (echo "FAIL: expected feature-two, got $BRANCH" && exit 1)
-
-          echo "PASS: second worktree created"
-
-      - name: "Test: create worktree that already exists fails gracefully"
-        run: |
-          cd /tmp/test-project
-          if $GITHUB_WORKSPACE/wtw create feature-one 2>&1; then
-            echo "FAIL: should have failed for existing worktree"
-            exit 1
-          fi
-          echo "PASS: duplicate worktree creation fails gracefully"
-
-      # ── Test: wtw ps (non-interactive) ────────────────────────────
-      - name: "Test: worktree list shows created worktrees"
-        run: |
-          cd /tmp/test-project
-          OUTPUT=$(git worktree list)
-          echo "$OUTPUT"
-
-          echo "$OUTPUT" | grep -q "feature-one" || (echo "FAIL: feature-one not in list" && exit 1)
-          echo "$OUTPUT" | grep -q "feature-two" || (echo "FAIL: feature-two not in list" && exit 1)
-
-          echo "PASS: worktrees listed correctly"
-
-      # ── Test: wtw rm ──────────────────────────────────────────────
-      - name: "Test: remove worktree by branch name"
-        run: |
-          cd /tmp/test-project
-          $GITHUB_WORKSPACE/wtw rm feature-two
-
-          WORKTREE_DIR="/tmp/test-project--worktrees/test-project--feature-two"
-          test ! -d "$WORKTREE_DIR" || (echo "FAIL: worktree dir still exists" && exit 1)
-
-          # Verify pruned from git
-          OUTPUT=$(git worktree list)
-          echo "$OUTPUT" | grep -q "feature-two" && (echo "FAIL: feature-two still in git worktree list" && exit 1)
-
-          echo "PASS: worktree removed and pruned"
-
-      - name: "Test: remove worktree with force (modified files)"
-        run: |
-          cd /tmp/test-project
-          WORKTREE_DIR="/tmp/test-project--worktrees/test-project--feature-one"
-
-          # Create untracked file in worktree
-          echo "dirty" > "$WORKTREE_DIR/untracked.txt"
-
-          # Normal remove should fail
-          if $GITHUB_WORKSPACE/wtw rm feature-one 2>&1 | grep -q "modified or untracked"; then
-            echo "OK: normal remove detected dirty worktree"
-          fi
-
-          # Force remove
-          $GITHUB_WORKSPACE/wtw rm -f feature-one
-
-          test ! -d "$WORKTREE_DIR" || (echo "FAIL: worktree still exists after force remove" && exit 1)
-
-          echo "PASS: force remove works"
-
-      - name: "Test: remove non-existent worktree fails gracefully"
-        run: |
-          cd /tmp/test-project
-          if $GITHUB_WORKSPACE/wtw rm nonexistent-branch 2>&1; then
-            echo "FAIL: should have failed"
-            exit 1
-          fi
-          echo "PASS: non-existent worktree removal fails gracefully"
-
-      # ── Test: post-copy hooks ─────────────────────────────────────
-      - name: "Test: post-copy hooks execute in worktree directory"
-        run: |
-          cd /tmp/test-project
-
-          # Write project config with hooks that create marker files
-          cat > .worktree-workflow.json << 'EOF'
-          {
-            "sync_ignored": true,
-            "sync_excludes": ["node_modules"],
-            "post_copy_hooks": [
-              "touch hook-step-1.txt",
-              "echo 'hello from hook' > hook-step-2.txt",
-              "pwd > hook-step-3.txt"
-            ]
-          }
-          EOF
-
-          $GITHUB_WORKSPACE/wtw create bugfix-123
-
-          WORKTREE_DIR="/tmp/test-project--worktrees/test-project--bugfix-123"
-
-          # Verify each hook ran
-          test -f "$WORKTREE_DIR/hook-step-1.txt" || (echo "FAIL: hook step 1 didn't run" && exit 1)
-          test "$(cat "$WORKTREE_DIR/hook-step-2.txt")" = "hello from hook" || (echo "FAIL: hook step 2 output wrong" && exit 1)
-          test "$(cat "$WORKTREE_DIR/hook-step-3.txt")" = "$WORKTREE_DIR" || (echo "FAIL: hook step 3 pwd wrong" && exit 1)
-
-          echo "PASS: all post-copy hooks executed in correct directory"
-
-      - name: "Test: failing hook stops execution"
-        run: |
-          cd /tmp/test-project
-
-          # Clean up previous worktree
-          $GITHUB_WORKSPACE/wtw rm -f bugfix-123
-
-          # Create a new branch for this test
-          git branch hook-fail-test
-
-          cat > .worktree-workflow.json << 'EOF'
-          {
-            "sync_ignored": false,
-            "sync_excludes": [],
-            "post_copy_hooks": [
-              "touch before-fail.txt",
-              "exit 1",
-              "touch after-fail.txt"
-            ]
-          }
-          EOF
-
-          # Should fail but not crash
-          $GITHUB_WORKSPACE/wtw create hook-fail-test || true
-
-          WORKTREE_DIR="/tmp/test-project--worktrees/test-project--hook-fail-test"
-
-          # First hook should have run
-          test -f "$WORKTREE_DIR/before-fail.txt" || (echo "FAIL: hook before failure didn't run" && exit 1)
-
-          # Third hook should NOT have run (stopped at failure)
-          test ! -f "$WORKTREE_DIR/after-fail.txt" || (echo "FAIL: hook after failure should not have run" && exit 1)
-
-          echo "PASS: failing hook stops execution correctly"
-
-      # ── Test: config ──────────────────────────────────────────────
-      - name: "Test: custom naming config"
-        run: |
-          # Create global config with custom naming
-          mkdir -p ~/.config/worktree-workflow
-          cat > ~/.config/worktree-workflow/config.json << 'EOF'
-          {
-            "editor": "echo",
-            "auto_open_editor": false,
-            "naming": {
-              "worktree_dir_suffix": "-wt",
-              "branch_separator": "_"
-            }
-          }
-          EOF
-
-          cd /tmp/test-project
-
-          # Reset project config to minimal
-          cat > .worktree-workflow.json << 'EOF'
-          {
-            "sync_ignored": false,
-            "sync_excludes": [],
-            "post_copy_hooks": []
-          }
-          EOF
-
-          # Create a fresh branch
-          git branch custom-naming-test
-
-          $GITHUB_WORKSPACE/wtw create custom-naming-test
-
-          # With custom naming: {repo}-wt/{repo}_branch
-          WORKTREE_DIR="/tmp/test-project-wt/test-project_custom-naming-test"
-          test -d "$WORKTREE_DIR" || (echo "FAIL: custom naming worktree not at expected path: $WORKTREE_DIR" && exit 1)
-
-          echo "PASS: custom naming config works"
-
-      - name: "Test: no config files uses defaults"
-        run: |
-          # Create a fresh repo with no config
-          mkdir -p /tmp/bare-project
-          cd /tmp/bare-project
-          git init
-          echo "hello" > file.txt
-          git add -A
-          git commit -m "init"
-          git branch test-defaults
-
-          # Remove global config
-          rm -rf ~/.config/worktree-workflow
-
-          $GITHUB_WORKSPACE/wtw create test-defaults
-
-          # Default naming: --worktrees and --
-          WORKTREE_DIR="/tmp/bare-project--worktrees/bare-project--test-defaults"
-          test -d "$WORKTREE_DIR" || (echo "FAIL: default naming worktree not at $WORKTREE_DIR" && exit 1)
-
-          echo "PASS: defaults work without any config"
-
-      - name: "Test: sync_ignored=false skips syncing"
-        run: |
-          rm -rf ~/.config/worktree-workflow
-
-          mkdir -p /tmp/nosync-project
-          cd /tmp/nosync-project
-          git init
-          echo ".env" >> .gitignore
-          echo "hello" > file.txt
-          echo "SECRET=123" > .env
-          git add -A
-          git commit -m "init"
-          git branch no-sync-test
-
-          cat > .worktree-workflow.json << 'EOF'
-          {
-            "sync_ignored": false,
-            "sync_excludes": [],
-            "post_copy_hooks": []
-          }
-          EOF
-
-          $GITHUB_WORKSPACE/wtw create no-sync-test
-
-          WORKTREE_DIR="/tmp/nosync-project--worktrees/nosync-project--no-sync-test"
-          test ! -f "$WORKTREE_DIR/.env" || (echo "FAIL: .env should not be synced when sync_ignored=false" && exit 1)
-
-          echo "PASS: sync_ignored=false skips file syncing"
-
-      # ── Test: not a git repo ──────────────────────────────────────
-      - name: "Test: running outside git repo fails"
-        run: |
-          cd /tmp
-          if $GITHUB_WORKSPACE/wtw create some-branch 2>&1; then
-            echo "FAIL: should fail outside git repo"
-            exit 1
-          fi
-          if $GITHUB_WORKSPACE/wtw ps 2>&1; then
-            echo "FAIL: ps should fail outside git repo"
-            exit 1
-          fi
-          echo "PASS: commands fail gracefully outside git repo"
-
-      # ── Test: help output ─────────────────────────────────────────
-      - name: "Test: help and subcommand help"
-        run: |
-          $GITHUB_WORKSPACE/wtw --help | grep -q "create" || (echo "FAIL: help missing create" && exit 1)
-          $GITHUB_WORKSPACE/wtw --help | grep -q "ps" || (echo "FAIL: help missing ps" && exit 1)
-          $GITHUB_WORKSPACE/wtw --help | grep -q "rm" || (echo "FAIL: help missing rm" && exit 1)
-          $GITHUB_WORKSPACE/wtw --help | grep -q "init" || (echo "FAIL: help missing init" && exit 1)
-          $GITHUB_WORKSPACE/wtw create --help | grep -q "branch" || (echo "FAIL: create help missing branch" && exit 1)
-          $GITHUB_WORKSPACE/wtw rm --help | grep -q "force" || (echo "FAIL: rm help missing force flag" && exit 1)
-
-          echo "PASS: all help output correct"
+      - name: Run e2e tests
+        run: WTW=./wtw ./e2e/run.sh

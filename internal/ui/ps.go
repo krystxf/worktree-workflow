@@ -145,12 +145,12 @@ var (
 func (m PickerModel) View() string {
 	if m.state == stateConfirmForce && m.forceItem != nil {
 		var b strings.Builder
-		b.WriteString("\n")
-		b.WriteString(fmt.Sprintf("  %s Worktree '%s' contains modified or untracked files.\n\n",
-			warnStyle.Render("!"), m.forceItem.branch))
-		b.WriteString(fmt.Sprintf("  %s %s\n\n",
+		fmt.Fprint(&b, "\n")
+		fmt.Fprintf(&b, "  %s Worktree '%s' contains modified or untracked files.\n\n",
+			warnStyle.Render("!"), m.forceItem.branch)
+		fmt.Fprintf(&b, "  %s %s\n\n",
 			promptStyle.Render("Force remove?"),
-			dimStyle.Render("[y/N]")))
+			dimStyle.Render("[y/N]"))
 		return b.String()
 	}
 	return docStyle.Render(m.list.View())
