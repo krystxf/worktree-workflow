@@ -7,7 +7,14 @@ set -euo pipefail
 rm -rf /tmp/test-project /tmp/test-project--worktrees /tmp/test-project-wt
 rm -rf /tmp/bare-project /tmp/bare-project--worktrees
 rm -rf /tmp/nosync-project /tmp/nosync-project--worktrees
-rm -rf ~/.config/worktree-workflow
+# Set global config that disables auto-open (no editor in CI)
+mkdir -p ~/.config/worktree-workflow
+cat > ~/.config/worktree-workflow/config.json << 'EOF'
+{
+  "editor": "echo",
+  "auto_open_editor": false
+}
+EOF
 
 git config --global user.email "test@test.com" 2>/dev/null || true
 git config --global user.name "Test" 2>/dev/null || true

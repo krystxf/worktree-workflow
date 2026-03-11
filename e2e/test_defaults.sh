@@ -3,7 +3,13 @@ set -euo pipefail
 
 WTW="${WTW:-./wtw}"
 
-rm -rf ~/.config/worktree-workflow
+# Keep global config with auto_open_editor=false but remove naming overrides
+mkdir -p ~/.config/worktree-workflow
+cat > ~/.config/worktree-workflow/config.json << 'EOF'
+{
+  "auto_open_editor": false
+}
+EOF
 rm -rf /tmp/bare-project /tmp/bare-project--worktrees
 
 mkdir -p /tmp/bare-project

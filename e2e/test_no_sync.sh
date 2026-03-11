@@ -3,7 +3,13 @@ set -euo pipefail
 
 WTW="${WTW:-./wtw}"
 
-rm -rf ~/.config/worktree-workflow
+# Keep global config with auto_open_editor=false
+mkdir -p ~/.config/worktree-workflow
+cat > ~/.config/worktree-workflow/config.json << 'EOF'
+{
+  "auto_open_editor": false
+}
+EOF
 rm -rf /tmp/nosync-project /tmp/nosync-project--worktrees
 
 mkdir -p /tmp/nosync-project
