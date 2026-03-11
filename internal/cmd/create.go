@@ -41,20 +41,25 @@ var createCmd = &cobra.Command{
 
 		worktreeDir := git.WorktreeDir(root, globalCfg.Naming.WorktreeDirSuffix, globalCfg.Naming.BranchSeparator, branch)
 
+		globalForce, _ := cmd.Root().PersistentFlags().GetBool("force")
+
 		createNewBranch := false
 		if !git.BranchExists(branch) {
-			if !term.IsTerminal(int(os.Stdin.Fd())) {
+			if globalForce {
+				createNewBranch = true
+			} else if !term.IsTerminal(int(os.Stdin.Fd())) {
 				return fmt.Errorf("branch '%s' does not exist (create it first or run interactively)", branch)
+			} else {
+				fmt.Printf("Branch '%s' does not exist. Create it? [y/N] ", branch)
+				reader := bufio.NewReader(os.Stdin)
+				answer, _ := reader.ReadString('\n')
+				answer = strings.TrimSpace(strings.ToLower(answer))
+				if answer != "y" && answer != "yes" {
+					fmt.Println("Aborted.")
+					return nil
+				}
+				createNewBranch = true
 			}
-			fmt.Printf("Branch '%s' does not exist. Create it? [y/N] ", branch)
-			reader := bufio.NewReader(os.Stdin)
-			answer, _ := reader.ReadString('\n')
-			answer = strings.TrimSpace(strings.ToLower(answer))
-			if answer != "y" && answer != "yes" {
-				fmt.Println("Aborted.")
-				return nil
-			}
-			createNewBranch = true
 		}
 
 		if !term.IsTerminal(int(os.Stdin.Fd())) {

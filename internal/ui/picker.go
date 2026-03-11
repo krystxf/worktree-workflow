@@ -2,37 +2,85 @@ package ui
 
 import (
 	"fmt"
-	"os/exec"
+	"io"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/krystof/worktree-workflow/internal/config"
+	"github.com/charmbracelet/x/ansi"
 	gitpkg "github.com/krystof/worktree-workflow/internal/git"
 )
+
+const mainWorktreeLabel = " (main)"
 
 type worktreeItem struct {
 	branch   string
 	path     string
 	disabled bool
+	isMain   bool
 }
 
 func (i worktreeItem) Title() string {
 	if i.disabled {
-		return dimStyle.Render(i.branch) + dimStyle.Render(" (main)")
+		return dimStyle.Render(i.branch) + dimStyle.Render(mainWorktreeLabel)
+	}
+	if i.isMain {
+		return i.branch + dimStyle.Render(mainWorktreeLabel)
 	}
 	return i.branch
 }
 
 func (i worktreeItem) Description() string {
 	if i.disabled {
-		return dimStyle.Render(i.path)
+		return dimStyle.Render("main worktree — not removable")
 	}
 	return i.path
 }
 
 func (i worktreeItem) FilterValue() string { return i.branch }
+
+// worktreeDelegate renders list items; for main worktree, "(main)" is always dim (no hover color).
+type worktreeDelegate struct {
+	list.DefaultDelegate
+}
+
+func (d worktreeDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	wi, ok := item.(worktreeItem)
+	if !ok || !wi.isMain {
+		d.DefaultDelegate.Render(w, m, index, item)
+		return
+	}
+	s := &d.Styles
+	width := m.Width()
+	if width <= 0 {
+		return
+	}
+	textwidth := width - s.NormalTitle.GetPaddingLeft() - s.NormalTitle.GetPaddingRight()
+	fullTitle := wi.branch + mainWorktreeLabel
+	fullTitle = ansi.Truncate(fullTitle, textwidth, "...")
+	var branchPart, mainSuffix string
+	if strings.HasSuffix(fullTitle, mainWorktreeLabel) {
+		branchPart = strings.TrimSuffix(fullTitle, mainWorktreeLabel)
+		mainSuffix = mainWorktreeLabel
+	} else {
+		branchPart = fullTitle
+		mainSuffix = ""
+	}
+	desc := wi.Description()
+	if d.ShowDescription {
+		desc = ansi.Truncate(desc, textwidth, "...")
+	}
+	isSelected := index == m.Index()
+	emptyFilter := m.FilterState() == list.Filtering && m.FilterValue() == ""
+	if emptyFilter {
+		_, _ = fmt.Fprintf(w, "%s%s\n%s", s.DimmedTitle.Render(branchPart), dimStyle.Render(mainSuffix), s.DimmedDesc.Render(desc))
+	} else if isSelected && m.FilterState() != list.Filtering {
+		_, _ = fmt.Fprintf(w, "%s%s\n%s", s.SelectedTitle.Render(branchPart), dimStyle.Render(mainSuffix), s.SelectedDesc.Render(desc))
+	} else {
+		_, _ = fmt.Fprintf(w, "%s%s\n%s", s.NormalTitle.Render(branchPart), dimStyle.Render(mainSuffix), s.NormalDesc.Render(desc))
+	}
+}
 
 // actionDoneMsg is sent when the post-selection action completes.
 type actionDoneMsg struct {
@@ -68,15 +116,24 @@ type PickerModel struct {
 	forcePromptFn func(item worktreeItem) tea.Cmd // action to run on force confirm
 }
 
-var docStyle = lipgloss.NewStyle().Margin(1, 2)
+var (
+	docStyle    = lipgloss.NewStyle().Margin(1, 2)
+	warnStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+	promptStyle = lipgloss.NewStyle().Bold(true)
+)
 
-func NewPickerModel(title string, worktrees []gitpkg.Worktree, action PickerAction, disabledPath string) PickerModel {
+func NewPickerModel(title string, worktrees []gitpkg.Worktree, action PickerAction, mainPath, disabledPath string) PickerModel {
 	items := make([]list.Item, len(worktrees))
 	for i, wt := range worktrees {
-		items[i] = worktreeItem{branch: wt.Branch, path: wt.Path, disabled: wt.Path == disabledPath}
+		items[i] = worktreeItem{
+			branch:   wt.Branch,
+			path:     wt.Path,
+			disabled: wt.Path == disabledPath,
+			isMain:   mainPath != "" && wt.Path == mainPath,
+		}
 	}
 
-	delegate := list.NewDefaultDelegate()
+	delegate := worktreeDelegate{DefaultDelegate: list.NewDefaultDelegate()}
 	l := list.New(items, delegate, 0, 0)
 	l.Title = title
 	l.SetShowStatusBar(true)
@@ -150,11 +207,6 @@ func (m PickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-var (
-	warnStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
-	promptStyle = lipgloss.NewStyle().Bold(true)
-)
-
 func (m PickerModel) View() string {
 	if m.state == stateConfirmForce && m.forceItem != nil {
 		var b strings.Builder
@@ -181,61 +233,4 @@ func (m PickerModel) ResultMessage() string {
 		return fmt.Sprintf("\n  %s %s\n", checkStyle.Render("✓"), m.result)
 	}
 	return ""
-}
-
-// OpenEditorAction returns a PickerAction that opens the selected worktree in an editor.
-func OpenEditorAction(globalCfg config.GlobalConfig) PickerAction {
-	return func(item worktreeItem) tea.Cmd {
-		return func() tea.Msg {
-			cmd := exec.Command(globalCfg.Editor, item.path)
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				return actionDoneMsg{err: fmt.Errorf("%s: %s", err, strings.TrimSpace(string(out)))}
-			}
-			return actionDoneMsg{result: fmt.Sprintf("Opened %s in %s", item.path, globalCfg.Editor)}
-		}
-	}
-}
-
-// RemoveWorktreeAction returns a PickerAction that removes the selected worktree and prunes.
-// If remove fails due to modified/untracked files, it sends needsForceMsg to prompt the user.
-func RemoveWorktreeAction(force bool) PickerAction {
-	return func(item worktreeItem) tea.Cmd {
-		return func() tea.Msg {
-			out, err := gitpkg.WorktreeRemove(item.path, force)
-			if err != nil {
-				if !force && strings.Contains(err.Error(), "modified or untracked") {
-					return needsForceMsg{item: item}
-				}
-				return actionDoneMsg{err: err}
-			}
-
-			pruneOut, pruneErr := gitpkg.WorktreePrune()
-			_, _ = out, pruneOut
-
-			if pruneErr != nil {
-				return actionDoneMsg{result: fmt.Sprintf("Removed worktree '%s' (prune warning: %s)", item.branch, pruneErr)}
-			}
-
-			return actionDoneMsg{result: fmt.Sprintf("Removed worktree '%s'", item.branch)}
-		}
-	}
-}
-
-func forceRemoveAction(item worktreeItem) tea.Cmd {
-	return func() tea.Msg {
-		out, err := gitpkg.WorktreeRemove(item.path, true)
-		if err != nil {
-			return actionDoneMsg{err: err}
-		}
-
-		pruneOut, pruneErr := gitpkg.WorktreePrune()
-		_, _ = out, pruneOut
-
-		if pruneErr != nil {
-			return actionDoneMsg{result: fmt.Sprintf("Force removed worktree '%s' (prune warning: %s)", item.branch, pruneErr)}
-		}
-
-		return actionDoneMsg{result: fmt.Sprintf("Force removed worktree '%s'", item.branch)}
-	}
 }

@@ -12,11 +12,12 @@ import (
 	"github.com/krystof/worktree-workflow/internal/ui"
 )
 
-var psCmd = &cobra.Command{
-	Use:   "ps",
-	Short: "List worktrees and select one to open",
+var lsCmd = &cobra.Command{
+	Use:     "ls",
+	Aliases: []string{"list"},
+	Short:   "List worktrees and select one to open",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		_, err := git.Root()
+		root, err := git.Root()
 		if err != nil {
 			return fmt.Errorf("not a git repository")
 		}
@@ -36,7 +37,7 @@ var psCmd = &cobra.Command{
 			return nil
 		}
 
-		model := ui.NewPickerModel("Worktrees", worktrees, ui.OpenEditorAction(globalCfg), "")
+		model := ui.NewPickerModel("Worktrees", worktrees, ui.OpenEditorAction(globalCfg), root, "")
 		p := tea.NewProgram(model, tea.WithAltScreen())
 
 		finalModel, err := p.Run()

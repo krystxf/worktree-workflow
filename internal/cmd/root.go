@@ -15,7 +15,8 @@ func Execute() error {
 }
 
 func init() {
+	rootCmd.PersistentFlags().BoolP("force", "f", false, "Do not prompt (force remove dirty worktrees, create branch when missing)")
 	rootCmd.AddCommand(createCmd)
-	rootCmd.AddCommand(psCmd)
+	rootCmd.AddCommand(lsCmd)
 	rootCmd.AddCommand(rmCmd)
 }

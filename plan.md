@@ -5,7 +5,7 @@ Feature roadmap for the `wtw` CLI tool.
 ## Implemented
 
 - [x] `wtw create <branch>` — create worktree with TUI spinner + log streaming
-- [x] `wtw ps` — interactive worktree list, select to open in editor
+- [x] `wtw ls` — interactive worktree list, select to open in editor
 - [x] `wtw rm <branch>` — remove a worktree
 - [x] Global config (`~/.config/worktree-workflow/config.json`) — editor, auto-open, naming
 - [x] Per-project config (`.worktree-workflow.json`) — sync_ignored, excludes, post-copy hooks

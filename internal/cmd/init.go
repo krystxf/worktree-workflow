@@ -20,7 +20,7 @@ var initCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		globalCfg, _ := config.LoadGlobal()
 
-		model := ui.NewInitModel(globalCfg.Editor)
+		model := ui.NewInitModel(globalCfg)
 		p := tea.NewProgram(model)
 
 		finalModel, err := p.Run()
@@ -36,6 +36,8 @@ var initCmd = &cobra.Command{
 
 		// Write global config
 		globalCfg.Editor = result.Editor
+		globalCfg.Naming.WorktreeDirSuffix = result.DirSuffix
+		globalCfg.Naming.BranchSeparator = result.BranchSep
 		if err := writeGlobalConfig(globalCfg); err != nil {
 			return fmt.Errorf("failed to write global config: %w", err)
 		}

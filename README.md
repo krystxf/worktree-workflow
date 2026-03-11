@@ -23,7 +23,7 @@ This produces a `wtw` binary in the current directory.
 ./wtw create feature-branch
 
 # List worktrees (interactive picker)
-./wtw ps
+./wtw ls
 
 # Remove a worktree
 ./wtw rm feature-branch
@@ -47,7 +47,7 @@ Then use it from anywhere:
 ```bash
 cd ~/code/my-project
 wtw create feature-branch
-wtw ps
+wtw ls
 wtw rm feature-branch
 ```
 
