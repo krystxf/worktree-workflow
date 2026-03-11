@@ -5,7 +5,7 @@ set -euo pipefail
 # Usage: WTW=./wtw ./e2e/run.sh
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-export WTW="${WTW:-./wtw}"
+export WTW="$(cd "$(dirname "${WTW:-./wtw}")" && pwd)/$(basename "${WTW:-./wtw}")"
 
 echo "=== E2E Tests ==="
 echo "Binary: $WTW"
