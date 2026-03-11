@@ -9,12 +9,10 @@ builds:
     binary: wtw
     env:
       - CGO_ENABLED=0
-    goos:
-      - linux
-      - darwin
-    goarch:
-      - amd64
-      - arm64
+    targets:
+      - linux_amd64
+      - linux_arm64
+      - darwin_arm64
 
 archives:
   - formats: [tar.gz]
