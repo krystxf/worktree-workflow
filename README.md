@@ -1,39 +1,141 @@
-# Worktree Workflow
+# wtw — Go CLI
 
-Stop stashing. Start branching like you mean it.
+## Prerequisites
 
-This script sets up [git worktrees](https://git-scm.com/docs/git-worktree) so you can work on multiple branches simultaneously — each in its own directory, each in its own editor window. No more `git stash` / `git stash pop`.
+- [Go](https://go.dev/dl/) 1.21+
+- git
+- rsync (pre-installed on macOS/Linux)
 
-## What it does
-
-1. Creates a worktree for the given branch next to your repo
-2. Syncs gitignored files (`.env`, etc.) into the worktree via hard links
-3. Runs any post-create commands you configure (e.g. `yarn install`)
-4. Opens the worktree in your IDE
-
-For a repo at `~/code/my-app`, running `worktree.sh develop` creates:
-
-```
-~/code/
-  worktree.sh
-  my-app/                        # your original repo
-  my-app--worktrees/
-    my-app--develop/             # the new worktree
-```
-
-- ✅ Switch branches instantly — no stashing, no losing context
-- ✅ Each branch lives in its own folder with its own editor window
-- ❌ Hard-linked `.env` files mean both worktrees share the same config
-- ❌ Running dev servers for both at once requires manual port tweaking
-
-## How to use
-
-1. **Copy `worktree.sh`** somewhere close to your project
-2. **Edit `worktree.sh`** — change the IDE (`cursor` → `code`, etc.), add post-create commands (`yarn install`, `pnpm install`, whatever your project needs), tweak `SYNC_EXCLUDES` if needed
-3. **Run it:**
+## Build
 
 ```bash
-../worktree.sh <branch>
+git clone https://github.com/krystof/worktree-workflow.git
+cd worktree-workflow
+go build -o wtw .
 ```
 
-That's it. You're now working in a fresh worktree.
+This produces a `wtw` binary in the current directory.
+
+## Run locally
+
+```bash
+# Create a worktree
+./wtw create feature-branch
+
+# List worktrees (interactive picker)
+./wtw ps
+
+# Remove a worktree
+./wtw rm feature-branch
+```
+
+## Install globally
+
+```bash
+go install github.com/krystof/worktree-workflow@latest
+```
+
+This puts the `wtw` binary in `$GOPATH/bin` (typically `~/go/bin`). Make sure it's in your `PATH`:
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc if not already there
+export PATH="$HOME/go/bin:$PATH"
+```
+
+Then use it from anywhere:
+
+```bash
+cd ~/code/my-project
+wtw create feature-branch
+wtw ps
+wtw rm feature-branch
+```
+
+**Note:** `go install` uses the module name as the binary name (`worktree-workflow`). To get the `wtw` name, either:
+
+```bash
+# Option A: alias
+alias wtw=worktree-workflow
+
+# Option B: rename after install
+mv "$(go env GOPATH)/bin/worktree-workflow" "$(go env GOPATH)/bin/wtw"
+
+# Option C: build and copy manually
+go build -o wtw .
+cp wtw /usr/local/bin/
+```
+
+## Configuration
+
+### Global config
+
+Create `~/.config/worktree-workflow/config.json`:
+
+```json
+{
+  "editor": "cursor",
+  "auto_open_editor": true,
+  "naming": {
+    "worktree_dir_suffix": "--worktrees",
+    "branch_separator": "--"
+  }
+}
+```
+
+| Field | Default | Description |
+|---|---|---|
+| `editor` | `"cursor"` | Command to open the worktree (e.g. `code`, `nvim`, `zed`) |
+| `auto_open_editor` | `true` | Open editor automatically after creating a worktree |
+| `naming.worktree_dir_suffix` | `"--worktrees"` | Suffix for the parent worktree directory |
+| `naming.branch_separator` | `"--"` | Separator between repo name and branch name |
+
+All fields are optional — missing values use the defaults above.
+
+### Per-project config
+
+Create `.worktree-workflow.json` in your project root:
+
+```json
+{
+  "sync_ignored": true,
+  "sync_excludes": ["node_modules"],
+  "post_copy_hooks": ["npm install"]
+}
+```
+
+| Field | Default | Description |
+|---|---|---|
+| `sync_ignored` | `true` | Sync gitignored files (`.env`, etc.) via hard links |
+| `sync_excludes` | `[]` | Patterns to exclude from sync |
+| `post_copy_hooks` | `[]` | Shell commands to run in the new worktree after creation |
+
+## Examples
+
+See the [`examples/`](examples/) directory:
+
+- [`cursor-npm`](examples/cursor-npm/) — Cursor editor + `npm install`
+- [`tmux`](examples/tmux/) — tmux window per worktree
+
+## Development
+
+```bash
+# Build
+make build
+
+# Format code
+make fmt
+
+# Lint (requires golangci-lint)
+make lint
+
+# Clean binary
+make clean
+```
+
+### Install golangci-lint
+
+```bash
+brew install golangci-lint
+```
+
+Or see [golangci-lint.run](https://golangci-lint.run/welcome/install/) for other methods.
