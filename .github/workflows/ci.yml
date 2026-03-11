@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-latest       # linux amd64
+          - ubuntu-24.04-arm    # linux arm64
+          - macos-latest        # macOS arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build -o wtw .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wtw-${{ matrix.runner }}
+          path: wtw
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+      - name: Run golangci-lint
+        run: golangci-lint run ./...
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install gofumpt
+        run: go install mvdan.cc/gofumpt@latest
+
+      - name: Check formatting
+        run: |
+          gofumpt -l .
+          test -z "$(gofumpt -l .)" || (echo "Files not formatted. Run 'make fmt'" && exit 1)
+
+  e2e:
+    name: E2E (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wtw-${{ matrix.runner }}
+
+      - name: Make binary executable
+        run: chmod +x wtw
+
+      - name: Setup git identity
+        run: |
+          git config --global user.email "test@test.com"
+          git config --global user.name "Test"
+
+      - name: Run e2e tests
+        run: WTW=./wtw ./e2e/run.sh

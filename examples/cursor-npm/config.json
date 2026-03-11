@@ -1,0 +1,8 @@
+{
+  "editor": "cursor",
+  "auto_open_editor": true,
+  "naming": {
+    "worktree_dir_suffix": "--worktrees",
+    "branch_separator": "--"
+  }
+}
