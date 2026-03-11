@@ -11,6 +11,7 @@ rm -rf ~/.config/worktree-workflow
 
 git config --global user.email "test@test.com" 2>/dev/null || true
 git config --global user.name "Test" 2>/dev/null || true
+git config --global init.defaultBranch main
 
 mkdir -p /tmp/test-project
 cd /tmp/test-project
