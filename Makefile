@@ -15,7 +15,7 @@ fmt:
 	gofumpt -w .
 
 e2e: build
-	WTW=./$(BINARY) ./e2e/run.sh
+	WTW=./$(BINARY) go test ./e2e/... -v -timeout 120s
 
 clean:
 	rm -f $(BINARY)
