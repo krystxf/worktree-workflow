@@ -70,8 +70,13 @@ var createCmd = &cobra.Command{
 		model := ui.NewCreateModel(branch, root, worktreeDir, globalCfg, projectCfg, createNewBranch)
 		p := tea.NewProgram(model)
 
-		if _, err := p.Run(); err != nil {
+		finalModel, err := p.Run()
+		if err != nil {
 			return err
+		}
+
+		if m, ok := finalModel.(ui.CreateModel); ok && m.Err() != nil {
+			return m.Err()
 		}
 
 		return nil
@@ -99,7 +104,7 @@ func createPlain(branch, root, worktreeDir string, globalCfg config.GlobalConfig
 		return err
 	}
 
-	if *projectCfg.SyncIgnored {
+	if projectCfg.SyncIgnored != nil && *projectCfg.SyncIgnored {
 		fmt.Println("Syncing gitignored files...")
 		out, err := syncpkg.SyncIgnored(root, worktreeDir, projectCfg.SyncExcludes)
 		if out != "" {
@@ -119,11 +124,15 @@ func createPlain(branch, root, worktreeDir string, globalCfg config.GlobalConfig
 			fmt.Print(string(out))
 		}
 		if err != nil {
-			return fmt.Errorf("hook %q failed: %s", hook, strings.TrimSpace(string(out)))
+			errMsg := strings.TrimSpace(string(out))
+			if errMsg != "" {
+				return fmt.Errorf("hook %q failed: %w: %s", hook, err, errMsg)
+			}
+			return fmt.Errorf("hook %q failed: %w", hook, err)
 		}
 	}
 
-	if *globalCfg.AutoOpenEditor {
+	if globalCfg.AutoOpenEditor != nil && *globalCfg.AutoOpenEditor {
 		fmt.Printf("Opening in %s...\n", globalCfg.Editor)
 		bin, editorArgs := globalCfg.EditorArgs(worktreeDir)
 		cmd := exec.Command(bin, editorArgs...)

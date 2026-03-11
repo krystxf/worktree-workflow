@@ -54,8 +54,9 @@ func NewLocalInitModel(current config.ProjectConfig) LocalInitModel {
 		hooks.SetValue(strings.Join(current.PostCopyHooks, ", "))
 	}
 
+	syncIgnored := current.SyncIgnored == nil || *current.SyncIgnored
 	return LocalInitModel{
-		syncIgnored: *current.SyncIgnored,
+		syncIgnored: syncIgnored,
 		excludes:    excludes,
 		hooks:       hooks,
 		phase:       localSyncIgnored,

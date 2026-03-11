@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -101,6 +102,7 @@ type pickerState int
 const (
 	stateBrowsing pickerState = iota
 	stateConfirmForce
+	stateLoading
 )
 
 type PickerModel struct {
@@ -114,6 +116,8 @@ type PickerModel struct {
 	state         pickerState
 	forceItem     *worktreeItem
 	forcePromptFn func(item worktreeItem) tea.Cmd // action to run on force confirm
+	spinner       spinner.Model
+	loadingLabel  string
 }
 
 var (
@@ -122,7 +126,7 @@ var (
 	promptStyle = lipgloss.NewStyle().Bold(true)
 )
 
-func NewPickerModel(title string, worktrees []gitpkg.Worktree, action PickerAction, mainPath, disabledPath string) PickerModel {
+func NewPickerModel(title string, worktrees []gitpkg.Worktree, action PickerAction, mainPath, disabledPath, loadingLabel string) PickerModel {
 	items := make([]list.Item, len(worktrees))
 	for i, wt := range worktrees {
 		items[i] = worktreeItem{
@@ -139,12 +143,18 @@ func NewPickerModel(title string, worktrees []gitpkg.Worktree, action PickerActi
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
 
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = spinnerStyle
+
 	return PickerModel{
 		list:          l,
 		title:         title,
 		action:        action,
 		state:         stateBrowsing,
 		forcePromptFn: forceRemoveAction,
+		spinner:       s,
+		loadingLabel:  loadingLabel,
 	}
 }
 
@@ -159,13 +169,31 @@ func (m PickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetSize(msg.Width-h, msg.Height-v)
 		return m, nil
 
+	case spinner.TickMsg:
+		if m.state == stateLoading {
+			var cmd tea.Cmd
+			m.spinner, cmd = m.spinner.Update(msg)
+			return m, cmd
+		}
+
 	case tea.KeyMsg:
+		// Loading — only allow ctrl+c
+		if m.state == stateLoading {
+			if msg.String() == "ctrl+c" {
+				m.quitting = true
+				return m, tea.Quit
+			}
+			return m, nil
+		}
+
 		// Force confirm prompt
 		if m.state == stateConfirmForce {
 			switch msg.String() {
 			case "y", "Y":
 				if m.forceItem != nil && m.forcePromptFn != nil {
-					return m, m.forcePromptFn(*m.forceItem)
+					m.selected = m.forceItem
+					m.state = stateLoading
+					return m, tea.Batch(m.spinner.Tick, m.forcePromptFn(*m.forceItem))
 				}
 			case "n", "N", "esc", "q":
 				m.state = stateBrowsing
@@ -187,7 +215,8 @@ func (m PickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if item, ok := m.list.SelectedItem().(worktreeItem); ok && !item.disabled {
 				m.selected = &item
-				return m, m.action(item)
+				m.state = stateLoading
+				return m, tea.Batch(m.spinner.Tick, m.action(item))
 			}
 		}
 
@@ -208,6 +237,9 @@ func (m PickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m PickerModel) View() string {
+	if m.state == stateLoading && m.selected != nil {
+		return fmt.Sprintf("\n  %s %s '%s'...\n", m.spinner.View(), m.loadingLabel, m.selected.branch)
+	}
 	if m.state == stateConfirmForce && m.forceItem != nil {
 		var b strings.Builder
 		fmt.Fprint(&b, "\n")

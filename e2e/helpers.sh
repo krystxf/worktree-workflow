@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # helpers.sh — assertion helpers for e2e tests
 # Source this at the top of every test: source "$(dirname "$0")/helpers.sh"
 
@@ -49,10 +50,10 @@ assert_command_succeeds() {
 }
 
 # Run wtw and capture combined output
-run_wtw() { $WTW "$@" 2>&1; }
+run_wtw() { "$WTW" "$@" 2>&1; }
 
 # Run wtw expecting failure, return output
-run_wtw_fail() { $WTW "$@" 2>&1 || true; }
+run_wtw_fail() { "$WTW" "$@" 2>&1 || true; }
 
 pass() { echo "PASS: $1"; }
 

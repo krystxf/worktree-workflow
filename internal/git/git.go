@@ -88,9 +88,9 @@ func WorktreePrune() (string, error) {
 
 func WorktreeList() ([]Worktree, error) {
 	cmd := exec.Command("git", "worktree", "list", "--porcelain")
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("git worktree list failed: %w", err)
+		return nil, fmt.Errorf("git worktree list failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 	return parseWorktreeList(out), nil
 }

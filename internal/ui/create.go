@@ -72,7 +72,22 @@ var (
 
 const maxVisibleLogs = 8
 
+// Err returns the error from the create workflow, if any.
+func (m CreateModel) Err() error {
+	return m.err
+}
+
 func NewCreateModel(branch, root, worktreeDir string, globalCfg config.GlobalConfig, projectCfg config.ProjectConfig, createNewBranch bool) CreateModel {
+	// Ensure bool pointers are non-nil to prevent panics from partial configs
+	if globalCfg.AutoOpenEditor == nil {
+		d := true
+		globalCfg.AutoOpenEditor = &d
+	}
+	if projectCfg.SyncIgnored == nil {
+		d := true
+		projectCfg.SyncIgnored = &d
+	}
+
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = spinnerStyle
@@ -313,7 +328,13 @@ func (m CreateModel) runHook(index int) tea.Cmd {
 		cmd.Dir = m.worktreeDir
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			return hookResult{index: index, logs: string(out), err: fmt.Errorf("hook %q failed: %s", hook, strings.TrimSpace(string(out)))}
+			errMsg := strings.TrimSpace(string(out))
+			if errMsg != "" {
+				err = fmt.Errorf("hook %q failed: %w: %s", hook, err, errMsg)
+			} else {
+				err = fmt.Errorf("hook %q failed: %w", hook, err)
+			}
+			return hookResult{index: index, logs: string(out), err: err}
 		}
 		return hookResult{index: index, logs: string(out)}
 	}
