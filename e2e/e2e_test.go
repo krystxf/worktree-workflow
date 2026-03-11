@@ -2,12 +2,20 @@ package e2e_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+)
+
+const (
+	colorReset = "\033[0m"
+	colorGreen = "\033[32m"
+	colorRed   = "\033[31m"
+	colorBold  = "\033[1m"
 )
 
 var wtwBin string
@@ -27,7 +35,14 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	wtwBin = abs
-	os.Exit(m.Run())
+
+	code := m.Run()
+	if code == 0 {
+		fmt.Printf("\n%s%s✓ All e2e tests passed%s\n", colorBold, colorGreen, colorReset)
+	} else {
+		fmt.Printf("\n%s%s✗ E2E tests failed%s\n", colorBold, colorRed, colorReset)
+	}
+	os.Exit(code)
 }
 
 func wtw(t *testing.T, dir string, args ...string) (string, error) {
