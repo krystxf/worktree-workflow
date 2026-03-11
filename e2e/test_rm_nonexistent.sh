@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-WTW="${WTW:-./wtw}"
+source "$(dirname "$0")/helpers.sh"
 
 cd /tmp/test-project
-if $WTW rm nonexistent-branch 2>&1; then
-  echo "FAIL: should have failed"
-  exit 1
-fi
+assert_command_fails "$WTW rm nonexistent-branch"
 
-echo "PASS: non-existent worktree removal fails"
+pass "non-existent worktree removal fails"

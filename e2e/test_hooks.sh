@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-WTW="${WTW:-./wtw}"
+source "$(dirname "$0")/helpers.sh"
 
 cd /tmp/test-project
 
@@ -17,14 +15,14 @@ cat > .worktree-workflow.json << 'EOF'
 }
 EOF
 
-$WTW create bugfix-123
+run_wtw create bugfix-123
 
-WORKTREE_DIR="/tmp/test-project--worktrees/test-project--bugfix-123"
+WORKTREE="/tmp/test-project--worktrees/test-project--bugfix-123"
+assert_file_exists "$WORKTREE/hook-step-1.txt"
+assert_file_contents "$WORKTREE/hook-step-2.txt" "hello from hook"
 
-test -f "$WORKTREE_DIR/hook-step-1.txt" || (echo "FAIL: hook step 1 didn't run" && exit 1)
-test "$(cat "$WORKTREE_DIR/hook-step-2.txt")" = "hello from hook" || (echo "FAIL: hook step 2 output wrong" && exit 1)
 # Resolve symlinks (macOS /tmp -> /private/tmp)
-EXPECTED_PWD=$(cd "$WORKTREE_DIR" && pwd -P)
-test "$(cat "$WORKTREE_DIR/hook-step-3.txt")" = "$EXPECTED_PWD" || (echo "FAIL: hook step 3 pwd wrong" && exit 1)
+EXPECTED_PWD=$(cd "$WORKTREE" && pwd -P)
+assert_file_contents "$WORKTREE/hook-step-3.txt" "$EXPECTED_PWD"
 
-echo "PASS: post-copy hooks"
+pass "post-copy hooks"

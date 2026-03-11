@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-WTW="${WTW:-./wtw}"
+source "$(dirname "$0")/helpers.sh"
 
 cd /tmp/test-project
-if $WTW create feature-one 2>&1; then
-  echo "FAIL: should have failed for existing worktree"
-  exit 1
-fi
+assert_command_fails "$WTW create feature-one"
 
-echo "PASS: duplicate worktree fails gracefully"
+pass "duplicate worktree fails gracefully"

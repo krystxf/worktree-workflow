@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-WTW="${WTW:-./wtw}"
+source "$(dirname "$0")/helpers.sh"
 
 cd /tmp/test-project
-$WTW create feature-two
+run_wtw create feature-two
 
-WORKTREE_DIR="/tmp/test-project--worktrees/test-project--feature-two"
-test -d "$WORKTREE_DIR" || (echo "FAIL: second worktree not created" && exit 1)
+WORKTREE="/tmp/test-project--worktrees/test-project--feature-two"
+assert_dir_exists "$WORKTREE"
+assert_branch "$WORKTREE" "feature-two"
 
-BRANCH=$(git -C "$WORKTREE_DIR" branch --show-current)
-test "$BRANCH" = "feature-two" || (echo "FAIL: expected feature-two, got $BRANCH" && exit 1)
-
-echo "PASS: create second worktree"
+pass "create second worktree"

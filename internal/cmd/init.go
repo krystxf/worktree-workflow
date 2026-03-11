@@ -14,51 +14,96 @@ import (
 	"github.com/krystof/worktree-workflow/internal/ui"
 )
 
+var initLocal bool
+
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize global config (~/.config/worktree-workflow) and optionally project config",
+	Short: "Initialize global config (~/.config/worktree-workflow) or project config (--local)",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		globalCfg, _ := config.LoadGlobal()
-
-		model := ui.NewInitModel(globalCfg)
-		p := tea.NewProgram(model)
-
-		finalModel, err := p.Run()
-		if err != nil {
-			return err
+		if initLocal {
+			return runInitLocal(cmd)
 		}
-
-		result := finalModel.(ui.InitModel).Result()
-		if result.Canceled {
-			fmt.Println("Canceled.")
-			return nil
-		}
-
-		// Write global config
-		globalCfg.Editor = result.Editor
-		globalCfg.Naming.WorktreeDirSuffix = result.DirSuffix
-		globalCfg.Naming.BranchSeparator = result.BranchSep
-		if err := writeGlobalConfig(globalCfg); err != nil {
-			return fmt.Errorf("failed to write global config: %w", err)
-		}
-		fmt.Printf("\n  ✓ Global config written to ~/.config/worktree-workflow/config.json\n")
-
-		// Write project config if inside a git repo
-		if root, err := git.Root(); err == nil {
-			projectPath := filepath.Join(root, ".worktree-workflow.json")
-			if err := writeProjectConfig(projectPath); err != nil {
-				return fmt.Errorf("failed to write project config: %w", err)
-			}
-			fmt.Printf("  ✓ Project config written to %s\n", projectPath)
-		}
-
-		fmt.Println()
-		return nil
+		return runInitGlobal()
 	},
 }
 
 func init() {
+	initCmd.Flags().BoolVar(&initLocal, "local", false, "Initialize project config (.worktree-workflow.json) in the current repo")
 	rootCmd.AddCommand(initCmd)
+}
+
+func runInitGlobal() error {
+	globalCfg, _ := config.LoadGlobal()
+
+	model := ui.NewInitModel(globalCfg)
+	p := tea.NewProgram(model)
+
+	finalModel, err := p.Run()
+	if err != nil {
+		return err
+	}
+
+	result := finalModel.(ui.InitModel).Result()
+	if result.Canceled {
+		fmt.Println("Canceled.")
+		return nil
+	}
+
+	globalCfg.Editor = result.Editor
+	globalCfg.Naming.WorktreeDirSuffix = result.DirSuffix
+	globalCfg.Naming.BranchSeparator = result.BranchSep
+	if err := writeGlobalConfig(globalCfg); err != nil {
+		return fmt.Errorf("failed to write global config: %w", err)
+	}
+	fmt.Printf("\n  ✓ Global config written to ~/.config/worktree-workflow/config.json\n\n")
+
+	return nil
+}
+
+func runInitLocal(cmd *cobra.Command) error {
+	root, err := git.Root()
+	if err != nil {
+		return fmt.Errorf("not a git repository (--local requires a git repo)")
+	}
+
+	globalForce, _ := cmd.Root().PersistentFlags().GetBool("force")
+	if globalForce {
+		projectCfg := config.DefaultProject()
+		projectPath := filepath.Join(root, ".worktree-workflow.json")
+		if err := writeProjectConfigData(projectPath, projectCfg); err != nil {
+			return fmt.Errorf("failed to write project config: %w", err)
+		}
+		fmt.Printf("\n  ✓ Project config written to %s\n\n", projectPath)
+		return nil
+	}
+
+	projectCfg, _ := config.LoadProject(root)
+
+	model := ui.NewLocalInitModel(projectCfg)
+	p := tea.NewProgram(model)
+
+	finalModel, err := p.Run()
+	if err != nil {
+		return err
+	}
+
+	result := finalModel.(ui.LocalInitModel).Result()
+	if result.Canceled {
+		fmt.Println("Canceled.")
+		return nil
+	}
+
+	projectCfg.SyncIgnored = result.SyncIgnored
+	projectCfg.SyncExcludes = result.SyncExcludes
+	projectCfg.PostCopyHooks = result.PostCopyHooks
+
+	projectPath := filepath.Join(root, ".worktree-workflow.json")
+	if err := writeProjectConfigData(projectPath, projectCfg); err != nil {
+		return fmt.Errorf("failed to write project config: %w", err)
+	}
+	fmt.Printf("\n  ✓ Project config written to %s\n\n", projectPath)
+
+	return nil
 }
 
 func writeGlobalConfig(cfg config.GlobalConfig) error {
@@ -80,9 +125,7 @@ func writeGlobalConfig(cfg config.GlobalConfig) error {
 	return os.WriteFile(filepath.Join(dir, "config.json"), append(data, '\n'), 0o644)
 }
 
-func writeProjectConfig(path string) error {
-	cfg := config.DefaultProject()
-
+func writeProjectConfigData(path string, cfg config.ProjectConfig) error {
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err

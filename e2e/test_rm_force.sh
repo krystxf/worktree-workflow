@@ -1,35 +1,28 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
 # Usage: test_rm_force.sh <-f|--force>
-# Runs the same force-remove test with the given flag to avoid duplicating code.
+source "$(dirname "$0")/helpers.sh"
 
-WTW="${WTW:-./wtw}"
 FORCE_FLAG="${1:?Usage: test_rm_force.sh <-f|--force>}"
-
 cd /tmp/test-project
 
-# Use a distinct branch per flag so we can run this test twice (-f and --force)
-if [ "$FORCE_FLAG" = "-f" ]; then
-  BRANCH="force-rm-f"
-else
-  BRANCH="force-rm-double"
-fi
+# Use distinct branch per flag so both -f and --force can run
+if [ "$FORCE_FLAG" = "-f" ]; then BRANCH="force-rm-f"; else BRANCH="force-rm-double"; fi
 
 git branch "$BRANCH" 2>/dev/null || true
-$WTW create "$BRANCH"
+run_wtw create "$BRANCH"
 
-WORKTREE_DIR="/tmp/test-project--worktrees/test-project--$BRANCH"
-test -d "$WORKTREE_DIR" || (echo "FAIL: worktree not at expected path: $WORKTREE_DIR" && exit 1)
+WORKTREE="/tmp/test-project--worktrees/test-project--$BRANCH"
+assert_dir_exists "$WORKTREE"
 
-echo "dirty" > "$WORKTREE_DIR/untracked.txt"
+# Make worktree dirty
+echo "dirty" > "$WORKTREE/untracked.txt"
 
-if $WTW rm "$BRANCH" 2>&1 | grep -q "modified or untracked"; then
-  echo "OK: normal remove detected dirty worktree"
-fi
+# Normal remove should detect dirty state
+OUTPUT=$(run_wtw_fail rm "$BRANCH")
+assert_output_contains "$OUTPUT" "modified or untracked"
 
-$WTW rm $FORCE_FLAG "$BRANCH"
+# Force remove should succeed
+run_wtw rm $FORCE_FLAG "$BRANCH"
+assert_dir_not_exists "$WORKTREE"
 
-test ! -d "$WORKTREE_DIR" || (echo "FAIL: worktree still exists after force remove" && exit 1)
-
-echo "PASS: force remove ($FORCE_FLAG)"
+pass "force remove ($FORCE_FLAG)"

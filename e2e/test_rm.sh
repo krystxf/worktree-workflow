@@ -1,28 +1,24 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
 # Usage: test_rm.sh [rm|remove]
-# Runs the same remove test with the given subcommand (default: rm).
+source "$(dirname "$0")/helpers.sh"
 
-WTW="${WTW:-./wtw}"
 CMD="${1:-rm}"
-
 cd /tmp/test-project
 
 if [ "$CMD" = "rm" ]; then
   BRANCH="feature-two"
 else
-  # "remove" alias: need a worktree to remove (feature-two already removed by first run)
+  # "remove" alias: feature-two already removed by first run
   BRANCH="bugfix-123"
-  $WTW create "$BRANCH"
+  run_wtw create "$BRANCH"
 fi
 
-$WTW $CMD "$BRANCH"
+run_wtw $CMD "$BRANCH"
 
-WORKTREE_DIR="/tmp/test-project--worktrees/test-project--$BRANCH"
-test ! -d "$WORKTREE_DIR" || (echo "FAIL: worktree dir still exists" && exit 1)
+WORKTREE="/tmp/test-project--worktrees/test-project--$BRANCH"
+assert_dir_not_exists "$WORKTREE"
 
 OUTPUT=$(git worktree list)
-echo "$OUTPUT" | grep -q "$BRANCH" && (echo "FAIL: $BRANCH still in git worktree list" && exit 1)
+echo "$OUTPUT" | grep -q "$BRANCH" && _fail "$BRANCH still in git worktree list"
 
-echo "PASS: remove worktree ($CMD)"
+pass "remove worktree ($CMD)"

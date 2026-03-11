@@ -1,18 +1,11 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
 # Usage: test_rm_force_custom_naming.sh <-f|--force>
-# Runs the same force-remove test with custom naming and the given flag.
+source "$(dirname "$0")/helpers.sh"
 
-WTW="${WTW:-./wtw}"
 FORCE_FLAG="${1:?Usage: test_rm_force_custom_naming.sh <-f|--force>}"
 
-# Use a distinct branch per flag so we can run this test twice (-f and --force)
-if [ "$FORCE_FLAG" = "-f" ]; then
-  BRANCH="force-rm-custom-f"
-else
-  BRANCH="force-rm-custom-double"
-fi
+# Distinct branch per flag
+if [ "$FORCE_FLAG" = "-f" ]; then BRANCH="force-rm-custom-f"; else BRANCH="force-rm-custom-double"; fi
 
 mkdir -p ~/.config/worktree-workflow
 cat > ~/.config/worktree-workflow/config.json << 'EOF'
@@ -27,21 +20,21 @@ cat > ~/.config/worktree-workflow/config.json << 'EOF'
 EOF
 
 cd /tmp/test-project
-
 git branch "$BRANCH" 2>/dev/null || true
-$WTW create "$BRANCH"
+run_wtw create "$BRANCH"
 
-WORKTREE_DIR="/tmp/test-project-wt/test-project_$BRANCH"
-test -d "$WORKTREE_DIR" || (echo "FAIL: worktree not at expected path: $WORKTREE_DIR" && exit 1)
+WORKTREE="/tmp/test-project-wt/test-project_$BRANCH"
+assert_dir_exists "$WORKTREE"
 
-echo "dirty" > "$WORKTREE_DIR/untracked.txt"
+# Make dirty
+echo "dirty" > "$WORKTREE/untracked.txt"
 
-if $WTW rm "$BRANCH" 2>&1 | grep -q "modified or untracked"; then
-  echo "OK: normal remove detected dirty worktree"
-fi
+# Normal remove should fail
+OUTPUT=$(run_wtw_fail rm "$BRANCH")
+assert_output_contains "$OUTPUT" "modified or untracked"
 
-$WTW rm $FORCE_FLAG "$BRANCH"
+# Force remove should succeed
+run_wtw rm $FORCE_FLAG "$BRANCH"
+assert_dir_not_exists "$WORKTREE"
 
-test ! -d "$WORKTREE_DIR" || (echo "FAIL: worktree still exists after force remove" && exit 1)
-
-echo "PASS: force rm with custom naming ($FORCE_FLAG)"
+pass "force rm with custom naming ($FORCE_FLAG)"

@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-WTW="${WTW:-./wtw}"
+source "$(dirname "$0")/helpers.sh"
 
 cd /tmp
-if $WTW create some-branch 2>&1; then
-  echo "FAIL: should fail outside git repo"
-  exit 1
-fi
-if $WTW ps 2>&1; then
-  echo "FAIL: ps should fail outside git repo"
-  exit 1
-fi
 
-echo "PASS: fails outside git repo"
+OUTPUT=$(run_wtw_fail create some-branch)
+assert_output_contains "$OUTPUT" "not a git repository"
+
+OUTPUT=$(run_wtw_fail ls)
+assert_output_contains "$OUTPUT" "not a git repository"
+
+pass "fails outside git repo"

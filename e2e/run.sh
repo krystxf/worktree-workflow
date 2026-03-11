@@ -61,6 +61,7 @@ INDEPENDENT_TESTS=(
   test_create_new_branch.sh
   test_force_create.sh
   test_init_naming.sh
+  test_init_local.sh
 )
 
 run_one() {

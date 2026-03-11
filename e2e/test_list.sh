@@ -1,23 +1,19 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
 # Usage: test_list.sh [ls|list]
 # No arg: verify worktrees via git worktree list.
-# With arg (ls or list): verify $WTW <cmd> --help works for the alias.
+# With arg: verify alias --help works.
+source "$(dirname "$0")/helpers.sh"
 
-WTW="${WTW:-./wtw}"
 CMD="${1:-}"
-
 cd /tmp/test-project
 
 if [ -z "$CMD" ]; then
   OUTPUT=$(git worktree list)
   echo "$OUTPUT"
-  echo "$OUTPUT" | grep -q "feature-one" || (echo "FAIL: feature-one not in list" && exit 1)
-  echo "$OUTPUT" | grep -q "feature-two" || (echo "FAIL: feature-two not in list" && exit 1)
-  echo "PASS: worktree list"
+  assert_output_contains "$OUTPUT" "feature-one"
+  assert_output_contains "$OUTPUT" "feature-two"
+  pass "worktree list"
 else
-  # Test that the subcommand alias works (e.g. wtw list --help)
-  $WTW "$CMD" --help >/dev/null 2>&1 || (echo "FAIL: $WTW $CMD --help failed" && exit 1)
-  echo "PASS: worktree list ($CMD)"
+  assert_command_succeeds "$WTW $CMD --help"
+  pass "worktree list ($CMD)"
 fi

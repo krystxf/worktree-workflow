@@ -1,15 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
+source "$(dirname "$0")/helpers.sh"
 
-WTW="${WTW:-./wtw}"
-
-# Keep global config with auto_open_editor=false
-mkdir -p ~/.config/worktree-workflow
-cat > ~/.config/worktree-workflow/config.json << 'EOF'
-{
-  "auto_open_editor": false
-}
-EOF
+write_global_config
 rm -rf /tmp/nosync-project /tmp/nosync-project--worktrees
 
 mkdir -p /tmp/nosync-project
@@ -30,9 +22,8 @@ cat > .worktree-workflow.json << 'EOF'
 }
 EOF
 
-$WTW create no-sync-test
+run_wtw create no-sync-test
 
-WORKTREE_DIR="/tmp/nosync-project--worktrees/nosync-project--no-sync-test"
-test ! -f "$WORKTREE_DIR/.env" || (echo "FAIL: .env should not be synced when sync_ignored=false" && exit 1)
+assert_file_not_exists "/tmp/nosync-project--worktrees/nosync-project--no-sync-test/.env"
 
-echo "PASS: sync_ignored=false skips syncing"
+pass "sync_ignored=false skips syncing"

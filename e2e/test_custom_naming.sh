@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-WTW="${WTW:-./wtw}"
+source "$(dirname "$0")/helpers.sh"
 
 mkdir -p ~/.config/worktree-workflow
 cat > ~/.config/worktree-workflow/config.json << 'EOF'
@@ -26,10 +24,8 @@ cat > .worktree-workflow.json << 'EOF'
 EOF
 
 git branch custom-naming-test 2>/dev/null || true
+run_wtw create custom-naming-test
 
-$WTW create custom-naming-test
+assert_dir_exists "/tmp/test-project-wt/test-project_custom-naming-test"
 
-WORKTREE_DIR="/tmp/test-project-wt/test-project_custom-naming-test"
-test -d "$WORKTREE_DIR" || (echo "FAIL: custom naming worktree not at expected path: $WORKTREE_DIR" && exit 1)
-
-echo "PASS: custom naming config"
+pass "custom naming config"

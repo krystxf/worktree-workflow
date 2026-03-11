@@ -1,0 +1,5 @@
+{
+  "sync_ignored": true,
+  "sync_excludes": [],
+  "post_copy_hooks": ["go install"]
+}
