@@ -3,13 +3,21 @@ name: E2E
 on:
   push:
 
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    name: Build (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        runner:
+          - ubuntu-latest       # linux amd64
+          - ubuntu-24.04-arm    # linux arm64
+          - macos-13            # macOS amd64
+          - macos-latest        # macOS arm64
     steps:
       - uses: actions/checkout@v4
 
@@ -22,22 +30,26 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wtw-${{ matrix.os }}
+          name: wtw-${{ matrix.runner }}
           path: wtw
 
   e2e:
-    name: E2E (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: E2E (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
     needs: build
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        runner:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-13
+          - macos-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/download-artifact@v4
         with:
-          name: wtw-${{ matrix.os }}
+          name: wtw-${{ matrix.runner }}
 
       - name: Make binary executable
         run: chmod +x wtw
