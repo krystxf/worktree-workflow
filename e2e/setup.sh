@@ -25,6 +25,7 @@ cd /tmp/test-project
 git init
 echo "node_modules/" >> .gitignore
 echo ".env" >> .gitignore
+echo ".env.local" >> .gitignore
 echo "dist/" >> .gitignore
 echo '{"name": "test-project"}' > package.json
 echo "hello" > index.js

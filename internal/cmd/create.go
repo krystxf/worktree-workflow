@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
@@ -40,11 +41,27 @@ var createCmd = &cobra.Command{
 
 		worktreeDir := git.WorktreeDir(root, globalCfg.Naming.WorktreeDirSuffix, globalCfg.Naming.BranchSeparator, branch)
 
-		if !term.IsTerminal(int(os.Stdin.Fd())) {
-			return createPlain(branch, root, worktreeDir, globalCfg, projectCfg)
+		createNewBranch := false
+		if !git.BranchExists(branch) {
+			if !term.IsTerminal(int(os.Stdin.Fd())) {
+				return fmt.Errorf("branch '%s' does not exist (create it first or run interactively)", branch)
+			}
+			fmt.Printf("Branch '%s' does not exist. Create it? [y/N] ", branch)
+			reader := bufio.NewReader(os.Stdin)
+			answer, _ := reader.ReadString('\n')
+			answer = strings.TrimSpace(strings.ToLower(answer))
+			if answer != "y" && answer != "yes" {
+				fmt.Println("Aborted.")
+				return nil
+			}
+			createNewBranch = true
 		}
 
-		model := ui.NewCreateModel(branch, root, worktreeDir, globalCfg, projectCfg)
+		if !term.IsTerminal(int(os.Stdin.Fd())) {
+			return createPlain(branch, root, worktreeDir, globalCfg, projectCfg, createNewBranch)
+		}
+
+		model := ui.NewCreateModel(branch, root, worktreeDir, globalCfg, projectCfg, createNewBranch)
 		p := tea.NewProgram(model)
 
 		if _, err := p.Run(); err != nil {
@@ -55,7 +72,18 @@ var createCmd = &cobra.Command{
 	},
 }
 
-func createPlain(branch, root, worktreeDir string, globalCfg config.GlobalConfig, projectCfg config.ProjectConfig) error {
+func createPlain(branch, root, worktreeDir string, globalCfg config.GlobalConfig, projectCfg config.ProjectConfig, createNewBranch bool) error {
+	if createNewBranch {
+		fmt.Printf("Creating branch '%s'...\n", branch)
+		out, err := git.BranchCreate(branch)
+		if out != "" {
+			fmt.Print(out)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
 	fmt.Printf("Creating worktree for '%s'...\n", branch)
 	out, err := git.WorktreeAdd(worktreeDir, branch)
 	if out != "" {

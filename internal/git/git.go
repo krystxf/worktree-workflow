@@ -32,6 +32,20 @@ func WorktreeDir(root, suffix, separator, branch string) string {
 	return filepath.Join(parent, repo+suffix, repo+separator+branch)
 }
 
+func BranchExists(branch string) bool {
+	err := exec.Command("git", "rev-parse", "--verify", "refs/heads/"+branch).Run()
+	return err == nil
+}
+
+func BranchCreate(branch string) (string, error) {
+	cmd := exec.Command("git", "branch", branch)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(out), fmt.Errorf("git branch create failed: %s", strings.TrimSpace(string(out)))
+	}
+	return string(out), nil
+}
+
 func WorktreeAdd(path, branch string) (string, error) {
 	cmd := exec.Command("git", "worktree", "add", path, branch)
 	out, err := cmd.CombinedOutput()
@@ -40,6 +54,7 @@ func WorktreeAdd(path, branch string) (string, error) {
 	}
 	return string(out), nil
 }
+
 
 func WorktreeRemove(path string, force bool) (string, error) {
 	args := []string{"worktree", "remove"}

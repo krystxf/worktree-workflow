@@ -38,6 +38,7 @@ INDEPENDENT_TESTS=(
   test_no_sync.sh
   test_not_git_repo.sh
   test_help.sh
+  test_create_new_branch.sh
 )
 
 for test in "${ORDERED_TESTS[@]}" "${INDEPENDENT_TESTS[@]}"; do

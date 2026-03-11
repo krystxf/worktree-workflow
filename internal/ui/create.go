@@ -16,7 +16,8 @@ import (
 type phase int
 
 const (
-	phaseCreating phase = iota
+	phaseCreatingBranch phase = iota
+	phaseCreating
 	phaseSyncing
 	phaseHooks
 	phaseOpening
@@ -37,11 +38,12 @@ type hookResult struct {
 }
 
 type CreateModel struct {
-	branch      string
-	root        string
-	worktreeDir string
-	globalCfg   config.GlobalConfig
-	projectCfg  config.ProjectConfig
+	branch          string
+	root            string
+	worktreeDir     string
+	globalCfg       config.GlobalConfig
+	projectCfg      config.ProjectConfig
+	createNewBranch bool
 
 	current      phase
 	failedAt     phase // which phase failed
@@ -68,7 +70,7 @@ var (
 	dimStyle     = lipgloss.NewStyle().Faint(true)
 )
 
-func NewCreateModel(branch, root, worktreeDir string, globalCfg config.GlobalConfig, projectCfg config.ProjectConfig) CreateModel {
+func NewCreateModel(branch, root, worktreeDir string, globalCfg config.GlobalConfig, projectCfg config.ProjectConfig, createNewBranch bool) CreateModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = spinnerStyle
@@ -78,20 +80,29 @@ func NewCreateModel(branch, root, worktreeDir string, globalCfg config.GlobalCon
 		statuses[i] = hookStatus{command: hook}
 	}
 
+	startPhase := phaseCreating
+	if createNewBranch {
+		startPhase = phaseCreatingBranch
+	}
+
 	return CreateModel{
-		branch:       branch,
-		root:         root,
-		worktreeDir:  worktreeDir,
-		globalCfg:    globalCfg,
-		projectCfg:   projectCfg,
-		current:      phaseCreating,
-		spinner:      s,
-		hooksTotal:   len(projectCfg.PostCopyHooks),
-		hookStatuses: statuses,
+		branch:          branch,
+		root:            root,
+		worktreeDir:     worktreeDir,
+		globalCfg:       globalCfg,
+		projectCfg:      projectCfg,
+		createNewBranch: createNewBranch,
+		current:         startPhase,
+		spinner:         s,
+		hooksTotal:      len(projectCfg.PostCopyHooks),
+		hookStatuses:    statuses,
 	}
 }
 
 func (m CreateModel) Init() tea.Cmd {
+	if m.createNewBranch {
+		return tea.Batch(m.spinner.Tick, m.runCreateBranch())
+	}
 	return tea.Batch(m.spinner.Tick, m.runCreate())
 }
 
@@ -124,6 +135,10 @@ func (m CreateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch msg.phase {
+		case phaseCreatingBranch:
+			m.current = phaseCreating
+			return m, m.runCreate()
+
 		case phaseCreating:
 			if m.projectCfg.SyncIgnored {
 				m.current = phaseSyncing
@@ -196,6 +211,7 @@ func (m CreateModel) View() string {
 		p    phase
 		name string
 	}{
+		{phaseCreatingBranch, "Creating branch"},
 		{phaseCreating, "Creating worktree"},
 		{phaseSyncing, "Syncing gitignored files"},
 		{phaseHooks, "Running post-copy hooks"},
@@ -203,6 +219,9 @@ func (m CreateModel) View() string {
 	}
 
 	for _, ph := range phases {
+		if ph.p == phaseCreatingBranch && !m.createNewBranch {
+			continue
+		}
 		if ph.p == phaseSyncing && !m.projectCfg.SyncIgnored {
 			continue
 		}
@@ -262,6 +281,13 @@ func (m CreateModel) View() string {
 
 	fmt.Fprint(&b, "\n")
 	return b.String()
+}
+
+func (m CreateModel) runCreateBranch() tea.Cmd {
+	return func() tea.Msg {
+		out, err := git.BranchCreate(m.branch)
+		return phaseResult{phase: phaseCreatingBranch, logs: out, err: err}
+	}
 }
 
 func (m CreateModel) runCreate() tea.Cmd {
