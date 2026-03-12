@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 
 	"github.com/krystof/worktree-workflow/internal/config"
 	"github.com/krystof/worktree-workflow/internal/git"
@@ -42,7 +42,7 @@ var createCmd = &cobra.Command{
 		worktreeDir := git.WorktreeDir(root, globalCfg.Naming.WorktreeDirSuffix, globalCfg.Naming.BranchSeparator, branch)
 
 		globalForce, _ := cmd.Root().PersistentFlags().GetBool("force")
-		isTerminal := term.IsTerminal(int(os.Stdin.Fd()))
+		isTerminal := isatty.IsTerminal(os.Stdin.Fd())
 
 		createNewBranch := false
 		if !git.BranchExists(branch) {
