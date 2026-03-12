@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 
 	"github.com/krystof/worktree-workflow/internal/config"
 	"github.com/krystof/worktree-workflow/internal/git"
@@ -74,7 +74,7 @@ func removeWorktree(worktreeDir, branch string, force bool) error {
 	out, err := git.WorktreeRemove(worktreeDir, force)
 	if err != nil {
 		if !force && errors.Is(err, git.ErrWorktreeModified) {
-			if !term.IsTerminal(int(os.Stdin.Fd())) {
+			if !isatty.IsTerminal(os.Stdin.Fd()) {
 				return fmt.Errorf("worktree '%s' has modified/untracked files (use -f to force remove)", branch)
 			}
 

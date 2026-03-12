@@ -107,6 +107,18 @@ make lint
 make clean
 ```
 
+### E2E tests
+
+Tests run inside a Docker container to ensure a consistent, isolated environment.
+
+**Prerequisites:** [Docker](https://docs.docker.com/get-docker/)
+
+```bash
+make e2e-docker
+```
+
+This builds the binary inside the container, runs all tests, and prints a colored summary at the end.
+
 ### Install golangci-lint
 
 ```bash
