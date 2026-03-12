@@ -9,6 +9,8 @@ builds:
     binary: wtw
     env:
       - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X github.com/krystof/worktree-workflow/internal/cmd.version={{.Version}}
     targets:
       - linux_amd64
       - linux_arm64

@@ -7,10 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var version = "dev"
+
 var rootCmd = &cobra.Command{
-	Use:   "wtw",
-	Short: "Worktree workflow manager",
-	Long:  "A TUI tool for managing git worktrees — create, list, and remove worktrees with ease.",
+	Use:     "wtw",
+	Short:   "Worktree workflow manager",
+	Long:    "A TUI tool for managing git worktrees — create, list, and remove worktrees with ease.",
+	Version: version,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if runtime.GOOS == "windows" {
 			return fmt.Errorf("wtw does not support Windows")
