@@ -96,7 +96,15 @@ func loadGlobalFrom(path string) (GlobalConfig, error) {
 }
 
 func LoadProject(gitRoot string) (ProjectConfig, error) {
-	return loadProjectFrom(filepath.Join(gitRoot, ".worktree-workflow.json"))
+	primaryPath := filepath.Join(gitRoot, ".worktree-workflow.json")
+	if _, err := os.Stat(primaryPath); err == nil {
+		return loadProjectFrom(primaryPath)
+	}
+
+	// Fallback: check parent directory for <reponame>.worktree-workflow.json
+	repo := filepath.Base(gitRoot)
+	fallbackPath := filepath.Join(filepath.Dir(gitRoot), repo+".worktree-workflow.json")
+	return loadProjectFrom(fallbackPath)
 }
 
 func loadProjectFrom(path string) (ProjectConfig, error) {

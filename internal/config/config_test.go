@@ -120,6 +120,75 @@ func TestLoadProjectExplicitFalse(t *testing.T) {
 	}
 }
 
+func TestLoadProjectFallbackToParent(t *testing.T) {
+	// Simulate: parent/repo/ has no .worktree-workflow.json
+	// but parent/repo.worktree-workflow.json exists
+	parent := t.TempDir()
+	repoDir := filepath.Join(parent, "myproject")
+	if err := os.MkdirAll(repoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	fallbackPath := filepath.Join(parent, "myproject.worktree-workflow.json")
+	if err := os.WriteFile(fallbackPath, []byte(`{"post_copy_hooks": ["make build"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadProject(repoDir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.PostCopyHooks) != 1 || cfg.PostCopyHooks[0] != "make build" {
+		t.Errorf("expected fallback config, got hooks: %v", cfg.PostCopyHooks)
+	}
+}
+
+func TestLoadProjectPrimaryTakesPrecedence(t *testing.T) {
+	parent := t.TempDir()
+	repoDir := filepath.Join(parent, "myproject")
+	if err := os.MkdirAll(repoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Both configs exist — primary should win
+	primaryPath := filepath.Join(repoDir, ".worktree-workflow.json")
+	if err := os.WriteFile(primaryPath, []byte(`{"post_copy_hooks": ["primary"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fallbackPath := filepath.Join(parent, "myproject.worktree-workflow.json")
+	if err := os.WriteFile(fallbackPath, []byte(`{"post_copy_hooks": ["fallback"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadProject(repoDir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.PostCopyHooks) != 1 || cfg.PostCopyHooks[0] != "primary" {
+		t.Errorf("expected primary config, got hooks: %v", cfg.PostCopyHooks)
+	}
+}
+
+func TestLoadProjectNeitherExists(t *testing.T) {
+	parent := t.TempDir()
+	repoDir := filepath.Join(parent, "myproject")
+	if err := os.MkdirAll(repoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadProject(repoDir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should return defaults
+	if !*cfg.SyncIgnored {
+		t.Error("expected default sync_ignored true")
+	}
+	if len(cfg.PostCopyHooks) != 0 {
+		t.Errorf("expected empty hooks, got %v", cfg.PostCopyHooks)
+	}
+}
+
 func TestEditorArgsSingleWord(t *testing.T) {
 	cfg := GlobalConfig{Editor: "cursor"}
 	bin, args := cfg.EditorArgs("/path/to/dir")
