@@ -33,7 +33,30 @@ func RepoName(root string) string {
 func WorktreeDir(root, suffix, separator, branch string) string {
 	repo := RepoName(root)
 	parent := filepath.Dir(root)
-	return filepath.Join(parent, repo+suffix, repo+separator+branch)
+	return filepath.Join(parent, repo+suffix, repo+separator+SanitizeBranch(branch))
+}
+
+// SanitizeBranch replaces characters that are problematic in filesystem paths
+// so that branch names like "feature/login" become "feature-login" in directory names.
+func SanitizeBranch(branch string) string {
+	replacer := strings.NewReplacer(
+		"/", "-",
+		"\\", "-",
+		":", "-",
+		" ", "-",
+		"..", "-",
+		"~", "-",
+		"^", "-",
+		"*", "-",
+		"?", "-",
+		"[", "-",
+		"]", "-",
+		"@{", "-",
+	)
+	s := replacer.Replace(branch)
+	// Trim leading/trailing dots and dashes
+	s = strings.Trim(s, ".-")
+	return s
 }
 
 func BranchExists(branch string) bool {

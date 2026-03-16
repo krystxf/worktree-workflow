@@ -48,6 +48,45 @@ func TestParseWorktreeListNoTrailingNewline(t *testing.T) {
 	}
 }
 
+func TestSanitizeBranch(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"feature/login", "feature-login"},
+		{"feature/nested/deep", "feature-nested-deep"},
+		{"simple-branch", "simple-branch"},
+		{"has spaces", "has-spaces"},
+		{"has:colons", "has-colons"},
+		{"back\\slash", "back-slash"},
+		{"star*glob", "star-glob"},
+		{"question?mark", "question-mark"},
+		{"bracket[0]", "bracket-0"},
+		{"tilde~ref", "tilde-ref"},
+		{"caret^ref", "caret-ref"},
+		{"double..dot", "double-dot"},
+		{".leading-dot", "leading-dot"},
+		{"trailing-dot.", "trailing-dot"},
+		{"feature/login/page", "feature-login-page"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := SanitizeBranch(tt.input)
+			if got != tt.want {
+				t.Errorf("SanitizeBranch(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWorktreeDirWithSlashBranch(t *testing.T) {
+	dir := WorktreeDir("/home/user/repo", "--worktrees", "--", "feature/login")
+	expected := "/home/user/repo--worktrees/repo--feature-login"
+	if dir != expected {
+		t.Errorf("WorktreeDir with slash branch = %q, want %q", dir, expected)
+	}
+}
+
 func TestFilterExcluded(t *testing.T) {
 	// null-separated file list
 	input := []byte(".env\x00node_modules/foo.js\x00dist/main.js\x00.env.local\x00")
