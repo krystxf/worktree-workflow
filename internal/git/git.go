@@ -26,6 +26,18 @@ func Root() (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+func MainRoot() (string, error) {
+	out, err := exec.Command("git", "worktree", "list", "--porcelain").Output()
+	if err != nil {
+		return "", fmt.Errorf("not a git repository")
+	}
+	worktrees := parseWorktreeList(out)
+	if len(worktrees) == 0 {
+		return "", fmt.Errorf("not a git repository")
+	}
+	return worktrees[0].Path, nil
+}
+
 func RepoName(root string) string {
 	return filepath.Base(root)
 }

@@ -3,25 +3,18 @@ package ui
 import (
 	"errors"
 	"fmt"
-	"os/exec"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/krystof/worktree-workflow/internal/config"
 	gitpkg "github.com/krystof/worktree-workflow/internal/git"
 )
 
-// OpenEditorAction returns a PickerAction that opens the selected worktree in an editor.
+// OpenEditorAction returns a PickerAction that signals the picker to quit so the
+// editor can be launched after the TUI exits (avoids terminal state conflicts).
 func OpenEditorAction(globalCfg config.GlobalConfig) PickerAction {
 	return func(item worktreeItem) tea.Cmd {
 		return func() tea.Msg {
-			bin, args := globalCfg.EditorArgs(item.path)
-			cmd := exec.Command(bin, args...)
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				return actionDoneMsg{err: fmt.Errorf("%s: %s", err, strings.TrimSpace(string(out)))}
-			}
-			return actionDoneMsg{result: fmt.Sprintf("Opened %s in %s", item.path, globalCfg.Editor)}
+			return actionDoneMsg{result: item.path}
 		}
 	}
 }

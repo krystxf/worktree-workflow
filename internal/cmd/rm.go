@@ -22,7 +22,7 @@ var rmCmd = &cobra.Command{
 	Short:   "Remove a worktree, prune, and clean up",
 	Args:    cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		root, err := git.Root()
+		root, err := git.MainRoot()
 		if err != nil {
 			return fmt.Errorf("not a git repository")
 		}

@@ -266,3 +266,11 @@ func (m PickerModel) ResultMessage() string {
 	}
 	return ""
 }
+
+// SelectedPath returns the path of the selected worktree, or empty string if none selected.
+func (m PickerModel) SelectedPath() string {
+	if m.selected == nil {
+		return ""
+	}
+	return m.selected.path
+}

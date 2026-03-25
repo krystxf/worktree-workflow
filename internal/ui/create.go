@@ -342,12 +342,21 @@ func (m CreateModel) runHook(index int) tea.Cmd {
 
 func (m CreateModel) runOpen() tea.Cmd {
 	return func() tea.Msg {
-		if !*m.globalCfg.AutoOpenEditor {
-			return phaseResult{phase: phaseOpening}
-		}
-		bin, args := m.globalCfg.EditorArgs(m.worktreeDir)
-		cmd := exec.Command(bin, args...)
-		out, err := cmd.CombinedOutput()
-		return phaseResult{phase: phaseOpening, logs: string(out), err: err}
+		return phaseResult{phase: phaseOpening}
 	}
+}
+
+// ShouldOpenEditor reports whether the editor should be launched after the TUI exits.
+func (m CreateModel) ShouldOpenEditor() bool {
+	return m.current == phaseDone && *m.globalCfg.AutoOpenEditor
+}
+
+// WorktreeDir returns the path of the created worktree.
+func (m CreateModel) WorktreeDir() string {
+	return m.worktreeDir
+}
+
+// GlobalCfg returns the global config (for editor args).
+func (m CreateModel) GlobalCfg() config.GlobalConfig {
+	return m.globalCfg
 }

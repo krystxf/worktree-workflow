@@ -24,7 +24,7 @@ var createCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		branch := args[0]
 
-		root, err := git.Root()
+		root, err := git.MainRoot()
 		if err != nil {
 			return fmt.Errorf("not a git repository")
 		}
@@ -75,8 +75,21 @@ var createCmd = &cobra.Command{
 			return err
 		}
 
-		if m, ok := finalModel.(ui.CreateModel); ok && m.Err() != nil {
-			return m.Err()
+		if m, ok := finalModel.(ui.CreateModel); ok {
+			if m.Err() != nil {
+				return m.Err()
+			}
+			if m.ShouldOpenEditor() {
+				globalCfg := m.GlobalCfg()
+				bin, editorArgs := globalCfg.EditorArgs(m.WorktreeDir())
+				cmd := exec.Command(bin, editorArgs...)
+				cmd.Stdin = os.Stdin
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				if err := cmd.Run(); err != nil {
+					return fmt.Errorf("failed to open editor: %w", err)
+				}
+			}
 		}
 
 		return nil
