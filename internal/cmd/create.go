@@ -47,7 +47,7 @@ var createCmd = &cobra.Command{
 		createNewBranch := false
 		if !git.BranchExists(branch) {
 			// Branch doesn't exist locally — try fetching from remote
-			git.Fetch(branch)
+			_ = git.Fetch(branch)
 			if !git.RemoteBranchExists(branch) {
 				// Branch doesn't exist on remote either — offer to create
 				if globalForce {
