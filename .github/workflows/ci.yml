@@ -2,9 +2,11 @@ name: CI
 
 on:
   push:
+    branches:
+      - "**"
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -100,3 +102,39 @@ jobs:
 
       - name: Run e2e tests
         run: WTW=./wtw go test ./e2e/... -v -timeout 120s
+
+  release:
+    name: Release
+    if: github.ref == 'refs/heads/main'
+    needs: [build, lint, format, e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Bump patch version and create tag
+        run: |
+          latest=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          base="${latest%-alpha}"
+          base="${base#v}"
+          IFS='.' read -r major minor patch <<< "$base"
+          patch=$((patch + 1))
+          next="v${major}.${minor}.${patch}-alpha"
+          echo "Creating tag: $next"
+          git tag "$next"
+          git push origin "$next"
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
