@@ -76,6 +76,15 @@ func BranchExists(branch string) bool {
 	return err == nil
 }
 
+func RemoteBranchExists(branch string) bool {
+	err := exec.Command("git", "rev-parse", "--verify", "refs/remotes/origin/"+branch).Run()
+	return err == nil
+}
+
+func Fetch(branch string) error {
+	return exec.Command("git", "fetch", "origin", branch).Run()
+}
+
 func BranchCreate(branch string) (string, error) {
 	cmd := exec.Command("git", "branch", branch)
 	out, err := cmd.CombinedOutput()

@@ -46,20 +46,25 @@ var createCmd = &cobra.Command{
 
 		createNewBranch := false
 		if !git.BranchExists(branch) {
-			if globalForce {
-				createNewBranch = true
-			} else if !isTerminal {
-				return fmt.Errorf("branch '%s' does not exist (create it first or run interactively)", branch)
-			} else {
-				fmt.Printf("Branch '%s' does not exist. Create it? [y/N] ", branch)
-				reader := bufio.NewReader(os.Stdin)
-				answer, _ := reader.ReadString('\n')
-				answer = strings.TrimSpace(strings.ToLower(answer))
-				if answer != "y" && answer != "yes" {
-					fmt.Println("Aborted.")
-					return nil
+			// Branch doesn't exist locally — try fetching from remote
+			git.Fetch(branch)
+			if !git.RemoteBranchExists(branch) {
+				// Branch doesn't exist on remote either — offer to create
+				if globalForce {
+					createNewBranch = true
+				} else if !isTerminal {
+					return fmt.Errorf("branch '%s' does not exist (create it first or run interactively)", branch)
+				} else {
+					fmt.Printf("Branch '%s' does not exist. Create it? [y/N] ", branch)
+					reader := bufio.NewReader(os.Stdin)
+					answer, _ := reader.ReadString('\n')
+					answer = strings.TrimSpace(strings.ToLower(answer))
+					if answer != "y" && answer != "yes" {
+						fmt.Println("Aborted.")
+						return nil
+					}
+					createNewBranch = true
 				}
-				createNewBranch = true
 			}
 		}
 
