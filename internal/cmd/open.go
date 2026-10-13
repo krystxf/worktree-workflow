@@ -28,18 +28,21 @@ var openCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Warning: failed to load global config: %s\n", err)
 		}
 
-		if len(args) == 1 {
-			branch := args[0]
-			worktreeDir := git.WorktreeDir(root, globalCfg.Naming.WorktreeDirSuffix, globalCfg.Naming.BranchSeparator, branch)
-			return openEditor(globalCfg, worktreeDir)
-		}
-
-		// No branch given — interactive picker
 		worktrees, err := git.WorktreeList()
 		if err != nil {
 			return err
 		}
 
+		if len(args) == 1 {
+			for _, worktree := range worktrees {
+				if worktree.Branch == args[0] {
+					return openEditor(globalCfg, worktree.Path)
+				}
+			}
+			return fmt.Errorf("no worktree found for branch %q; run wtw create %s first", args[0], args[0])
+		}
+
+		// No branch given — interactive picker.
 		if len(worktrees) == 0 {
 			fmt.Println("No worktrees found.")
 			return nil
@@ -64,6 +67,9 @@ var openCmd = &cobra.Command{
 }
 
 func openEditor(globalCfg config.GlobalConfig, worktreeDir string) error {
+	if err := git.ValidateWorktreeDir(worktreeDir); err != nil {
+		return err
+	}
 	bin, editorArgs := globalCfg.EditorArgs(worktreeDir)
 	c := exec.Command(bin, editorArgs...)
 	c.Stdin = os.Stdin
