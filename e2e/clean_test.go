@@ -53,9 +53,15 @@ func TestClean(t *testing.T) {
 			gitCmd(t, paths["renamed"], "branch", "--set-upstream-to=backup/other-name")
 			detached := filepath.Join(tmp, "detached")
 			gitCmd(t, repo, "worktree", "add", "--detach", detached)
+			stale := filepath.Join(tmp, "stale")
+			gitCmd(t, repo, "worktree", "add", "-b", "stale", stale)
+			if err := os.RemoveAll(stale); err != nil {
+				t.Fatal(err)
+			}
 			before := gitCmd(t, remote, "show-ref")
 			out := mustWtw(t, paths["current"], args...)
 			assertOutputContains(t, out, "Removed 2 synced worktree(s)")
+			assertOutputContains(t, out, "prunable worktree")
 			for name, path := range paths {
 				if name == "synced" || name == "renamed" {
 					assertDirNotExists(t, path)

@@ -70,7 +70,9 @@ This command never pushes, and local branches are retained.
 
 The main and current worktrees, locked worktrees, detached checkouts, and branches
 without a remote upstream are skipped. Ahead, behind, diverged, and remotely
-deleted branches are also skipped. Remote lookup failures preserve the affected
+deleted branches are also skipped. Prunable entries for deleted directories are skipped. Remote lookups have a
+30-second deadline and disable Git terminal prompts; default SSH uses batch mode
+while custom SSH transports are preserved. Remote lookup failures preserve the affected
 worktree and cause a nonzero exit status; other worktrees are still checked.
 `--force` does not bypass these checks. `wtw rm --clean` cannot take a branch.
 
