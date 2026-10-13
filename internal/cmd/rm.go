@@ -22,6 +22,13 @@ var rmCmd = &cobra.Command{
 	Short:   "Remove a worktree, prune, and clean up",
 	Args:    cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		clean, _ := cmd.Flags().GetBool("clean")
+		if clean {
+			if len(args) != 0 {
+				return fmt.Errorf("--clean cannot be combined with a branch")
+			}
+			return cleanWorktrees(cmd)
+		}
 		root, err := git.MainRoot()
 		if err != nil {
 			return fmt.Errorf("not a git repository")
@@ -113,4 +120,8 @@ func removeWorktree(worktreeDir, branch string, force bool) error {
 		fmt.Println("✓ Pruned stale worktree references")
 	}
 	return nil
+}
+
+func init() {
+	rmCmd.Flags().Bool("clean", false, "Remove clean worktrees that exactly match their remote upstream (never pushes)")
 }
