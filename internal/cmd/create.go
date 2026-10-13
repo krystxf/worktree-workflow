@@ -85,15 +85,7 @@ var createCmd = &cobra.Command{
 				return m.Err()
 			}
 			if m.ShouldOpenEditor() {
-				globalCfg := m.GlobalCfg()
-				bin, editorArgs := globalCfg.EditorArgs(m.WorktreeDir())
-				cmd := exec.Command(bin, editorArgs...)
-				cmd.Stdin = os.Stdin
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				if err := cmd.Run(); err != nil {
-					return fmt.Errorf("failed to open editor: %w", err)
-				}
+				return openEditor(m.GlobalCfg(), m.WorktreeDir())
 			}
 		}
 
@@ -152,14 +144,8 @@ func createPlain(branch, root, worktreeDir string, globalCfg config.GlobalConfig
 
 	if globalCfg.AutoOpenEditor != nil && *globalCfg.AutoOpenEditor {
 		fmt.Printf("Opening in %s...\n", globalCfg.Editor)
-		bin, editorArgs := globalCfg.EditorArgs(worktreeDir)
-		cmd := exec.Command(bin, editorArgs...)
-		out, err := cmd.CombinedOutput()
-		if len(out) > 0 {
-			fmt.Print(string(out))
-		}
-		if err != nil {
-			return fmt.Errorf("failed to open editor: %s", strings.TrimSpace(string(out)))
+		if err := openEditor(globalCfg, worktreeDir); err != nil {
+			return err
 		}
 	}
 

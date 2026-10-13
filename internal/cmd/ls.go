@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -48,14 +47,7 @@ var lsCmd = &cobra.Command{
 
 		if m, ok := finalModel.(ui.PickerModel); ok {
 			if path := m.SelectedPath(); path != "" {
-				bin, args := globalCfg.EditorArgs(path)
-				cmd := exec.Command(bin, args...)
-				cmd.Stdin = os.Stdin
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				if err := cmd.Run(); err != nil {
-					return fmt.Errorf("failed to open editor: %w", err)
-				}
+				return openEditor(globalCfg, path)
 			}
 		}
 

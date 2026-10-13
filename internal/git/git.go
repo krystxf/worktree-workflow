@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -205,4 +206,25 @@ func filterExcluded(data []byte, excludes []string) []byte {
 		result = append(result, 0)
 	}
 	return result
+}
+
+// ValidateWorktreeDir rejects missing paths, files, and directories that are not
+// worktree roots before an editor can interpret them as new files.
+func ValidateWorktreeDir(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("cannot open worktree %q: %w", path, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("cannot open worktree %q: not a directory", path)
+	}
+	out, err := exec.Command("git", "-C", path, "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		return fmt.Errorf("cannot open worktree %q: not a valid git worktree", path)
+	}
+	rootInfo, err := os.Stat(strings.TrimSpace(string(out)))
+	if err != nil || !os.SameFile(info, rootInfo) {
+		return fmt.Errorf("cannot open worktree %q: not a git worktree root", path)
+	}
+	return nil
 }
