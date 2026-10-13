@@ -16,6 +16,7 @@ var ErrWorktreeModified = errors.New("worktree contains modified or untracked fi
 type Worktree struct {
 	Path   string
 	Branch string
+	Locked bool
 }
 
 func Root() (string, error) {
@@ -152,6 +153,8 @@ func parseWorktreeList(data []byte) []Worktree {
 		case strings.HasPrefix(line, "branch "):
 			ref := strings.TrimPrefix(line, "branch ")
 			current.Branch = strings.TrimPrefix(ref, "refs/heads/")
+		case line == "locked" || strings.HasPrefix(line, "locked "):
+			current.Locked = true
 		case line == "detached":
 			current.Branch = "(detached HEAD)"
 		case line == "":

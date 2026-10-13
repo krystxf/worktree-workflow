@@ -60,6 +60,21 @@ See the [`examples/`](examples/) directory:
 - [`cursor-npm`](examples/cursor-npm/) — Cursor editor + `npm install`
 - [`tmux`](examples/tmux/) — tmux window per worktree
 
+### Clean synced worktrees
+
+Run `wtw --clean` (or `wtw rm --clean`) to remove all eligible linked worktrees.
+A worktree is eligible only when its HEAD exactly matches its configured remote
+upstream and it has no modified, staged, untracked, or ignored files. The remote
+is queried directly, so stale local tracking refs cannot authorize deletion.
+This command never pushes, and local branches are retained.
+
+The main and current worktrees, locked worktrees, detached checkouts, and branches
+without a remote upstream are skipped. Ahead, behind, diverged, and remotely
+deleted branches are also skipped. Remote lookup failures preserve the affected
+worktree and cause a nonzero exit status; other worktrees are still checked.
+`--force` does not bypass these checks. `wtw rm --clean` cannot take a branch.
+
+
 ## Development
 
 ### Prerequisites
