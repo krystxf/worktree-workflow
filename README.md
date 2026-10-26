@@ -5,9 +5,10 @@
 ### Homebrew
 
 ```bash
-brew tap krystxf/wtw
-brew install wtw
+brew install krystxf/tap/wtw
 ```
+
+If you installed wtw from the old `krystxf/wtw` tap, `brew update` moves it to `krystxf/tap`.
 
 ## Configuration
 

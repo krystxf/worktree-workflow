@@ -27,10 +27,13 @@ brews:
   - name: wtw
     repository:
       owner: krystxf
-      name: homebrew-wtw
+      name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
     homepage: "https://github.com/krystxf/worktree-workflow"
     description: "TUI tool for managing git worktrees"
     license: "MIT"
     install: |
       bin.install "wtw"
+    test: |
+      assert_match version.to_s, shell_output("#{bin}/wtw --version")
